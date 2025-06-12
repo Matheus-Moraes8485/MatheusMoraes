@@ -1,0 +1,218 @@
+Option Explicit
+
+'Main procedure to handle data extraction and comparison
+Public Sub ExtractAndCompareData()
+    On Error GoTo ErrorHandler
+
+    'Declare variables
+    Dim wsCurrent As Worksheet
+    Dim wbSource As Workbook
+    Dim wsSource As Worksheet
+    Dim strPath As String
+    Dim lLastRowSource As Long
+    Dim lLastRowDest As Long
+    Dim lLastColSource As Long
+    Dim rngSource As Range
+    Dim rngDest As Range
+    Dim response As VbMsgBoxResult
+    Dim T1 As Long
+
+    'Start timer for performance tracking
+    T1 = Timer
+
+    'Initialize worksheet reference
+    Set wsCurrent = ThisWorkbook.Sheets("1-EXPORT")
+
+    'Unprotect and unhide the worksheet (like in BOTAO START 2)
+    wsCurrent.Unprotect
+    wsCurrent.Visible = xlSheetVisible
+
+    'Optimize performance
+    Call OptimizeExcel(True)
+
+    'Get source file
+    strPath = SelectFile()
+    If strPath = "" Then GoTo CleanExit
+
+    'Open workbook and compare headers
+    Set wbSource = Workbooks.Open(strPath)
+    Set wsSource = wbSource.Sheets(1)
+
+    'Compare headers
+    If CompareHeaders(wsCurrent, wsSource) Then
+        'Headers are equal - Copy data preserving formulas
+        lLastRowSource = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
+        lLastColSource = wsSource.Cells(1, wsSource.Columns.Count).End(xlToLeft).Column
+
+        'Only copy if there's data to copy
+        If lLastRowSource > 1 And lLastColSource > 0 Then
+            Set rngSource = wsSource.Range(wsSource.Cells(2, 1), wsSource.Cells(lLastRowSource, lLastColSource))
+            
+            'Clear existing data
+            lLastRowDest = wsCurrent.Cells(wsCurrent.Rows.Count, "A").End(xlUp).Row
+            If lLastRowDest > 1 Then
+                wsCurrent.Range("A2:A" & lLastRowDest).EntireRow.ClearContents
+            End If
+            
+            ' --- MUDANÇA 1: Cópia direta de valores, evita erro 1004 ---
+            wsCurrent.Cells(2, 1).Resize(rngSource.Rows.Count, rngSource.Columns.Count).Value = rngSource.Value
+
+            Call FormatWorksheet(wsCurrent, lLastRowSource, lLastColSource)
+        End If
+
+        MsgBox "Data has been successfully copied and formatted!", vbInformation
+    Else
+        response = MsgBox("All headers and contents of the OTD Tracker will be erased and updated with the new configuration. Do you really want this?", _
+                         vbQuestion + vbYesNo, "Confirm Update")
+
+        If response = vbNo Then
+            MsgBox "Process canceled by user.", vbInformation
+            GoTo CleanExit
+        End If
+
+        With wsCurrent
+            .Cells.ClearContents
+            lLastColSource = wsSource.Cells(1, wsSource.Columns.Count).End(xlToLeft).Column
+            lLastRowSource = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
+
+            ' --- MUDANÇA 2: Cópia de cabeçalho com atribuição direta ---
+            If lLastColSource > 0 Then
+                .Range("A1").Resize(1, lLastColSource).Value = wsSource.Range(wsSource.Cells(1, 1), wsSource.Cells(1, lLastColSource)).Value
+            End If
+
+            If lLastRowSource > 1 And lLastColSource > 0 Then
+                .Range("A2").Resize(lLastRowSource - 1, lLastColSource).Value = wsSource.Range(wsSource.Cells(2, 1), wsSource.Cells(lLastRowSource, lLastColSource)).Value
+            End If
+
+            Call FormatWorksheet(wsCurrent, lLastRowSource, lLastColSource)
+        End With
+
+        MsgBox "Headers and data have been updated and formatted successfully!", vbInformation
+    End If
+
+CleanExit:
+    Application.CutCopyMode = False
+    If Not wbSource Is Nothing Then wbSource.Close False
+
+    On Error Resume Next
+    If Not wsCurrent Is Nothing Then
+        wsCurrent.Protect
+        wsCurrent.Visible = xlSheetHidden
+    End If
+    On Error GoTo 0
+
+    Call OptimizeExcel(False)
+
+    MsgBox "Successful import!    Time: " & Format(Timer - T1, "0.0") & " sec"
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "Error " & Err.Number & ": " & Err.Description & vbCrLf & _
+           "In " & Err.Source, vbCritical, "Macro Error"
+
+    If Not wbSource Is Nothing Then
+        On Error Resume Next
+        wbSource.Close SaveChanges:=False
+        Set wbSource = Nothing
+        On Error GoTo 0
+    End If
+
+    If Not wsCurrent Is Nothing Then
+        On Error Resume Next
+        wsCurrent.Protect
+        wsCurrent.Visible = xlSheetHidden
+        On Error GoTo 0
+    End If
+
+    Call OptimizeExcel(False)
+End Sub
+
+'Function to format worksheet (enhanced with BOTAO START 2 formatting)
+Private Sub FormatWorksheet(ws As Worksheet, lastRow As Long, lastCol As Long)
+    If lastRow < 1 Or lastCol < 1 Then Exit Sub ' --- MUDANÇA 3: evita intervalo inválido
+    Dim rngData As Range
+    Set rngData = ws.Range(ws.Cells(1, 1), ws.Cells(lastRow, lastCol))
+
+    With rngData
+        .Borders(xlDiagonalDown).LineStyle = xlNone
+        .Borders(xlDiagonalUp).LineStyle = xlNone
+        With .Borders(xlEdgeLeft): .LineStyle = xlDot: .ColorIndex = xlAutomatic: .TintAndShade = 0: .Weight = xlThin: End With
+        With .Borders(xlEdgeTop): .LineStyle = xlDot: .ColorIndex = xlAutomatic: .TintAndShade = 0: .Weight = xlThin: End With
+        With .Borders(xlEdgeBottom): .LineStyle = xlDot: .ColorIndex = xlAutomatic: .TintAndShade = 0: .Weight = xlThin: End With
+        With .Borders(xlEdgeRight): .LineStyle = xlDot: .ColorIndex = xlAutomatic: .TintAndShade = 0: .Weight = xlThin: End With
+        With .Borders(xlInsideVertical): .LineStyle = xlDot: .ColorIndex = xlAutomatic: .TintAndShade = 0: .Weight = xlThin: End With
+        With .Borders(xlInsideHorizontal): .LineStyle = xlDot: .ColorIndex = xlAutomatic: .TintAndShade = 0: .Weight = xlThin: End With
+
+        .VerticalAlignment = xlTop
+        .WrapText = True
+        .Font.Size = 10
+        .RowHeight = 25.4
+        .Columns.AutoFit
+        .Rows(1).Font.Bold = True
+        .AutoFilter
+    End With
+
+    Application.ScreenUpdating = True
+    ws.Activate
+    On Error Resume Next
+    With ws.Parent.Windows(1)
+        .FreezePanes = False
+        ws.Range("A2").Select
+        .FreezePanes = True
+    End With
+    On Error GoTo 0
+End Sub
+
+Private Sub OptimizeExcel(ByVal bDisable As Boolean)
+    With Application
+        .ScreenUpdating = Not bDisable
+        .EnableEvents = Not bDisable
+        .Calculation = IIf(bDisable, xlCalculationManual, xlCalculationAutomatic)
+        .DisplayAlerts = Not bDisable
+        .CutCopyMode = False
+    End With
+End Sub
+
+Private Function SelectFile() As String
+    On Error Resume Next
+    SelectFile = Application.GetOpenFilename( _
+        Title:="Which file would you like to extract data from?", _
+        FileFilter:="Excel Files (*.xlsx; *.xls),*.xlsx;*.xls")
+
+    If SelectFile = "False" Then
+        MsgBox "No file was selected. Process canceled.", vbInformation
+        SelectFile = ""
+    End If
+End Function
+
+Private Function CompareHeaders(ByVal ws1 As Worksheet, ByVal ws2 As Worksheet) As Boolean
+    On Error GoTo ErrorHandler
+
+    Dim rngHeaders1 As Range, rngHeaders2 As Range
+    Dim lLastCol1 As Long, lLastCol2 As Long
+    Dim i As Long
+
+    lLastCol1 = ws1.Cells(1, ws1.Columns.Count).End(xlToLeft).Column
+    lLastCol2 = ws2.Cells(1, ws2.Columns.Count).End(xlToLeft).Column
+
+    Set rngHeaders1 = ws1.Range(ws1.Cells(1, 1), ws1.Cells(1, lLastCol1))
+    Set rngHeaders2 = ws2.Range(ws2.Cells(1, 1), ws2.Cells(1, lLastCol2))
+
+    If lLastCol1 <> lLastCol2 Then
+        CompareHeaders = False
+        Exit Function
+    End If
+
+    For i = 1 To lLastCol1
+        If Trim(rngHeaders1.Cells(1, i).Value) <> Trim(rngHeaders2.Cells(1, i).Value) Then
+            CompareHeaders = False
+            Exit Function
+        End If
+    Next i
+
+    CompareHeaders = True
+    Exit Function
+
+ErrorHandler:
+    CompareHeaders = False
+End Function

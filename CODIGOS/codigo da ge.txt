@@ -1,0 +1,610 @@
+Option Explicit
+Option Compare Text
+
+Public reason_code_id As Integer
+Public action_item_id As Integer
+
+ 
+Private Function Action_item_owner_layout(column_target, Dlig) ' to set rolling liste per "Function"
+    Feuil2.Activate
+    Feuil2.Range(Cells(3, column_target), Cells(Dlig, column_target)).Select ' Permet de sélectionner la bonne colonne
+    
+' Call rolling list per "Function" defined in ProjecttTeam folder
+    With Selection.Validation
+        .Delete
+        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertWarning, Operator:=xlBetween, Formula1:="=Function" 'function est un nom pouvant être modifié dans l'onglet formule - Gestionnaire de noms
+        .IgnoreBlank = True
+        .InCellDropdown = True
+        .InputTitle = ""
+        .ErrorTitle = ""
+        .InputMessage = ""
+        .ErrorMessage = ""
+        .ShowInput = True
+        .ShowError = False ' open to other name(SSO) ...
+    End With
+
+End Function
+ 
+Private Function Reason_code_layout(column_target, Dlig)
+    Feuil2.Activate
+    Feuil2.Range(Cells(3, column_target), Cells(Dlig, column_target)).Select
+    
+' Call rolling list per "DELAY_REASON" defined in masked folder "DELAY_REASON"
+    With Selection.Validation
+        .Delete
+        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertWarning, Operator:=xlBetween, Formula1:="=DELAY_REASON" 'DELAY_REASON est un nom pouvant être modifié dans l'onglet formule - Gestionnaire de noms, l'ajout de reason code se fait dans la feuille Delay Reason
+        .IgnoreBlank = True
+        .InCellDropdown = True
+        .InputTitle = ""
+        .ErrorTitle = ""
+        .InputMessage = ""
+        .ErrorMessage = ""
+        .ShowInput = True
+        .ShowError = True ' list shall be stricktly followed
+    End With
+    
+End Function
+
+Private Function priority_level(column_target, Dlig)
+
+' Function to set priority_level column( 1:red, 2: orange ...)
+
+    Feuil2.Activate
+    Feuil2.Range(Cells(3, column_target), Cells(Dlig, column_target)).Select
+    
+    Selection.HorizontalAlignment = xlCenter
+
+    Selection.FormatConditions.AddColorScale ColorScaleType:=3
+    Selection.FormatConditions(Selection.FormatConditions.Count).SetFirstPriority
+    Selection.FormatConditions(1).ColorScaleCriteria(1).Type = xlConditionValueNumber
+    Selection.FormatConditions(1).ColorScaleCriteria(1).Value = 1
+    With Selection.FormatConditions(1).ColorScaleCriteria(1).FormatColor
+        .Color = 255
+        .TintAndShade = 0
+    End With
+    Selection.FormatConditions(1).ColorScaleCriteria(2).Type = xlConditionValueNumber
+    Selection.FormatConditions(1).ColorScaleCriteria(2).Value = 2
+    With Selection.FormatConditions(1).ColorScaleCriteria(2).FormatColor
+        .Color = 49407
+        .TintAndShade = 0
+    End With
+    Selection.FormatConditions(1).ColorScaleCriteria(3).Type = xlConditionValueNumber
+    Selection.FormatConditions(1).ColorScaleCriteria(3).Value = 3
+    With Selection.FormatConditions(1).ColorScaleCriteria(3).FormatColor
+        .Color = 65535
+        .TintAndShade = 0
+    End With
+    With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .ThemeColor = xlThemeColorDark1
+        .TintAndShade = -0.149998474074526
+        .PatternTintAndShade = 0
+    End With
+    
+End Function
+
+
+Private Function PositiveValue_level(column_target, Dlig)
+
+' Function qui fait la mise en forme de la colonne DTTP Req et les 2 suivantes(DTT C Req et DTT WOW) ( 1 en rouge, 2 en orange etc)
+
+Dim MaPlage As Range
+    
+    Feuil2.Activate
+
+    Set MaPlage = Feuil2.Range(Cells(3, column_target), Cells(Dlig, column_target + 2)) ' 3 colonnes avec la meme formule
+    
+' test pour un colorisation direct sans forme conditionnel --- to implement later
+    '    If MaPlage. >= 40 Then
+    '        MaPlage.Font.Bold = True ' gras
+    '        MaPlage.Font.Color = RGB(255, 255, 0) ' Yellow
+    '        MaPlage.Interior.Color = RGB(255, 0, 0) ' Rouge
+    '    ElseIf MaPlage.Value > 0 Then
+    '        MaPlage.Font.Color = RGB(204, 51, 0)  ' Orange brûlé
+    '        MaPlage.Interior.Color = RGB(255, 255, 0)  ' Yellow
+    '    End If
+    
+    With MaPlage
+        .FormatConditions.Add Type:=xlCellValue, Operator:=xlGreater, Formula1:="40"
+        .FormatConditions(1).Font.Bold = True ' gras
+        .FormatConditions(1).Font.Color = RGB(255, 255, 0) ' Yellow
+        .FormatConditions(1).Interior.Color = RGB(255, 0, 0) ' Rouge
+    
+        .FormatConditions.Add Type:=xlCellValue, Operator:=xlGreater, Formula1:="0"
+        .FormatConditions(2).Font.Bold = True ' gras
+        .FormatConditions(2).Font.Color = RGB(204, 51, 0)  ' Orange brûlé
+        .FormatConditions(2).Interior.Color = RGB(255, 255, 0)  ' Yellow
+    End With
+    
+End Function
+
+Private Function Cond_format(Dlig, Max_y, EngInd, ProdSts, PoInd, RTSInd, PuInd, DTTInd, POL, EAD)
+
+' Function to set conditionnal format on lines as per line 2 color based on MLI status and user choice in "Project Team" folder
+Dim MaPlage2 As Range
+Dim uv As UniqueValues
+Dim x, y, Oper_AND As String
+
+    Feuil2.Activate   ' not usefull
+
+' Set formula operator per language
+    Select Case Application.LanguageSettings.LanguageID(msoLanguageIDInstall)
+        Case 1036
+            Oper_AND = "ET" 'Français
+        Case 1031
+            Oper_AND = "UND" 'Deutch
+        Case Else
+            Oper_AND = "AND" 'English
+    End Select
+
+' PO POLINE  to identify duplicate values on column POL -- Shall be the firts condition !! --
+    Set MaPlage2 = Feuil2.Range(Cells(3, POL), Cells(Dlig, POL))
+    Set uv = MaPlage2.FormatConditions.AddUniqueValues
+    uv.DupeUnique = xlDuplicate
+    uv.Interior.Color = RGB(0, 204, 255)
+    uv.Font.Color = vbYellow
+
+' =ET(EB1=MAX($EB1:$EG1);EB1>0)
+    x = Split(Feuil2.Cells(3, EAD).Address, "$")(1)
+    y = Split(Feuil2.Cells(3, EAD + 5).Address, "$")(1)
+    Set MaPlage2 = Feuil2.Range(Cells(3, EAD), Cells(Dlig, EAD + 5))
+    With MaPlage2.FormatConditions
+        With .Add(Type:=xlExpression, Formula1:="=" & Oper_AND & "(" & x & "3=MAX($" & x & "3:$" & y & "3);" & x & "3>0)")
+            .Interior.Color = RGB(0, 204, 255)
+            .Font.Color = vbYellow
+        End With
+    End With
+    
+'
+    Set MaPlage2 = Feuil2.Range(Cells(3, 1), Cells(Dlig, Max_y))
+    
+    With MaPlage2.FormatConditions
+    ' DTT IND
+        x = Split(Feuil2.Cells(3, DTTInd).Address, "$")(1)
+        With .Add(Type:=xlExpression, Formula1:="=" & Oper_AND & "('PROJECT TEAM'!$E$1=""YES"";$" & x & "3=""A"")")
+            .Interior.Color = RGB(204, 204, 255)
+        End With
+    ' PU IND
+        x = Split(Feuil2.Cells(3, PuInd).Address, "$")(1)
+        With .Add(Type:=xlExpression, Formula1:="=" & Oper_AND & "('PROJECT TEAM'!$E$1=""YES"";$" & x & "3=""A"")")
+            .Interior.Color = RGB(189, 215, 238)
+        End With
+' RTS IND
+        x = Split(Feuil2.Cells(3, RTSInd).Address, "$")(1)
+        With .Add(Type:=xlExpression, Formula1:="=" & Oper_AND & "('PROJECT TEAM'!$E$1=""YES"";$" & x & "3=""A"")")
+            .Interior.Color = RGB(198, 224, 180)
+        End With
+' PO IND
+        x = Split(Feuil2.Cells(3, PoInd).Address, "$")(1)
+        With .Add(Type:=xlExpression, Formula1:="=" & Oper_AND & "('PROJECT TEAM'!$E$1=""YES"";$" & x & "3=""A"")")
+            .Interior.Color = RGB(255, 230, 153)
+        End With
+' ENG IND
+        x = Split(Feuil2.Cells(3, EngInd).Address, "$")(1)
+        y = Split(Feuil2.Cells(3, ProdSts).Address, "$")(1)
+        With .Add(Type:=xlExpression, Formula1:="=" & Oper_AND & "('PROJECT TEAM'!$E$1=""YES"";$" & x & "3=""A"";$" & y & "3=""Production"")")
+            .Interior.Color = RGB(248, 203, 173)
+        End With
+    End With
+
+End Function
+
+Private Function Dates_layout(column_target, Dlig)
+'Fonction qui fait la mise en pages de toutes les colonnes comportant des dates
+
+    Feuil2.Activate
+    Feuil2.Range(Cells(3, column_target), Cells(Dlig, column_target)).NumberFormat = "dd-[$-409]mmm-yy" '[$-409] permet d'afficher les 3 premières lettres du mois
+    
+    'Définie la couleur de la cellule  ??? Usefull ???
+     With Feuil2.Range(Cells(3, column_target), Cells(Dlig, column_target)).Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .ThemeColor = xlThemeColorDark1
+        .TintAndShade = -0.149998474074526  ' <-- gris !
+        .PatternTintAndShade = 0
+    End With
+        
+End Function
+
+Private Function Dates_layout_white(column_target, Dlig)
+'Fonction qui fait la mise en pages pour la colonne DUE DATE
+
+    Feuil2.Activate
+    Feuil2.Range(Cells(3, column_target), Cells(Dlig, column_target)).Select
+    Selection.NumberFormat = "dd-[$-409]mmm-yy" '[$-409] permet d'afficher les 3 premières lettres du mois
+        
+'    'Définie la couleur de la cellule
+'     With Feuil2.Range(Cells(3, column_target), Cells(Dlig, column_target)).Interior
+'        .Pattern = xlSolid
+'        .PatternColorIndex = xlAutomatic
+'        .ThemeColor = xlThemeColorDark1
+'        .TintAndShade = 0  ' <---  mettre en blanc !!!
+'        .PatternTintAndShade = 0
+'    End With
+
+End Function
+
+Private Function common_layout(column_target, Dlig)
+
+' Fonction qui fait la mise en page des colonnes grises (que l'utilisateur ne modifie pas)
+
+    Feuil2.Activate
+    Feuil2.Range(Cells(3, column_target), Cells(Dlig, column_target)).Select
+    
+    ' Définie la couleur de la cellule
+    With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .ThemeColor = xlThemeColorDark1
+        .TintAndShade = -0.149998474074526 ' <-- gris !!
+        .PatternTintAndShade = 0
+    End With
+    
+End Function
+
+Private Function white_layout(column_target, Dlig)
+'Fonction qui fait la mise en page de toutes les colonnes blanches (dans lesquelles l'utilisateur peut écrire)
+
+    Feuil2.Activate
+    Feuil2.Range(Cells(3, column_target), Cells(Dlig, column_target)).Select
+            
+'  Définie la couleur de la cellule
+    With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .ThemeColor = xlThemeColorDark1
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+    
+End Function
+
+Private Function Center_cell(column_target, Dlig)
+' Function to Center data in the cell
+    
+    Feuil2.Activate  ' not usefull
+
+    Feuil2.Range(Cells(3, column_target), Cells(Dlig, column_target)).Select
+    With Selection
+        .HorizontalAlignment = xlCenter
+'        .VerticalAlignment = xlBottom
+'        .WrapText = True
+'        .Orientation = 0
+'        .AddIndent = False
+'        .IndentLevel = 0
+'        .ShrinkToFit = False
+'        .ReadingOrder = xlContext
+'        .MergeCells = False
+    End With
+
+End Function
+
+Private Function number_layout(column_target, Dlig)
+'Fonction qui fait la mise en page des colonnes avec valeurs à digit
+
+    Feuil2.Activate  ' not usefull
+
+'    Feuil2.Range(Cells(3, column_target), Cells(Dlig, column_target)).Select
+    
+    With Feuil2.Range(Cells(3, column_target), Cells(Dlig, column_target))
+        .NumberFormat = "#,##0"
+        .HorizontalAlignment = xlRight
+'        .VerticalAlignment = xlBottom
+'        .WrapText = True
+'        .Orientation = 0
+'        .AddIndent = False
+'        .IndentLevel = 0
+'        .ShrinkToFit = False
+'        .ReadingOrder = xlContext
+'        .MergeCells = False
+    End With
+            
+End Function
+
+Function all_layout(Dlig, Max_y, IPS_c, MLI_c, BlT_c)
+'Fonction qui fait la mise en page commune à toutes les colonnes sans exception
+
+Dim ColID As String
+
+    Feuil2.Activate
+
+    Feuil2.Range(Cells(3, 1), Cells(Dlig, Max_y)).Select 'Selectionne toutes les celulles de la page
+
+'Appliquer les bordures
+    Selection.Borders(xlDiagonalDown).LineStyle = xlNone
+    Selection.Borders(xlDiagonalUp).LineStyle = xlNone
+    With Selection.Borders(xlEdgeLeft)
+        .LineStyle = xlDot
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With Selection.Borders(xlEdgeTop)
+        .LineStyle = xlDot
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With Selection.Borders(xlEdgeBottom)
+        .LineStyle = xlDot
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With Selection.Borders(xlEdgeRight)
+        .LineStyle = xlDot
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With Selection.Borders(xlInsideVertical)
+        .LineStyle = xlDot
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With Selection.Borders(xlInsideHorizontal)
+        .LineStyle = xlDot
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    
+    Rows("3:" & Dlig).Select
+    Selection.RowHeight = 25.4
+    
+' --- Sort data by IPS, MLI, BlocTrain  ---- !!!!!  to modify for more flexibility !!!!!!!!!---
+    Feuil2.AutoFilter.Sort.SortFields.Clear
+    ColID = Split(Range(Cells(2, 1), Cells(2, IPS_c)).Address, "$")(3)
+    Feuil2.AutoFilter.Sort.SortFields.Add2 Key:= _
+        Range(ColID & "3:" & ColID & Dlig), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+    
+    ColID = Split(Range(Cells(2, 1), Cells(2, MLI_c)).Address, "$")(3)
+    Feuil2.AutoFilter.Sort.SortFields.Add2 Key:= _
+        Range(ColID & "3:" & ColID & Dlig), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortTextAsNumbers
+    
+    ColID = Split(Range(Cells(2, 1), Cells(2, BlT_c)).Address, "$")(3)
+    Feuil2.AutoFilter.Sort.SortFields.Add2 Key:= _
+        Range(ColID & "3:" & ColID & Dlig), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+    With Feuil2.AutoFilter.Sort
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    
+End Function
+
+
+'Fonction d'exécution du module - quand on appuie sur START
+Sub Template_Perso()
+
+Dim plage As String
+Dim Dlig, Dcol As Long
+Dim Corres As Boolean
+Dim x2, y2, Max, Max_y, IPS_col, BlockT_Col, MLI_Col, EngInd, PoInd, RTSInd, PuInd, DTTInd, ProdSts, POL, EAD As Integer
+Dim appfile As Variant
+Dim x, y, bookimport, nom, path_name As String
+Dim datebookimport As Variant
+    
+    
+' 4 lines to accelerate the treatment
+    Application.ScreenUpdating = False
+    Application.Calculation = xlManual
+    Application.EnableEvents = False
+    Application.DisplayAlerts = False
+    
+'    ThisWorkbook.Activate
+
+    Feuil1.Unprotect 'Feuille 1 est protégée pour eviter à l'utilisateur de faire un changement dessus + cette page est masquée
+    nom = ActiveWorkbook.name ' Stocke le nom du classeur actif
+    path_name = ThisWorkbook.Path ' Stocke le chemin d'accès du classeur actif
+    ChDir path_name
+ 
+' Ouverture du fichier de données exporté
+    appfile = Application.GetOpenFilename()
+    If appfile = False Then Exit Sub
+    
+    Workbooks.Open appfile
+    bookimport = ActiveWorkbook.name ' Nom du classeur importé
+    datebookimport = FileDateTime(bookimport)
+
+' Copie des données importées dans la feuille 1-EXPORT
+    Dlig = Range("A" & Rows.Count).End(xlUp).Row ' Last line used in bookimport file
+    Dcol = Cells(2, Columns.Count).End(xlToLeft).Column ' Last column used in bookimport file
+
+    x = Split(Range(Cells(2, 1), Cells(2, Dcol)).Address, "$")(3) ' feuil1 from bookimport
+
+' Copy data from bookimport --- from A to x
+    Range("A3:" & x & Dlig).Copy
+
+' Paste data into sheet 1-EXPORT  ---
+    Feuil1.Range("A2").PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+    Workbooks(bookimport).Application.CutCopyMode = False
+    Workbooks(bookimport).Close
+
+'    ThisWorkbook.Activate
+        
+' Determination of number of columns of sheet 1-EXPORT
+    x = Split(Feuil1.UsedRange.Address, "$")(3)
+    Max = CInt(Feuil1.Range(x & "1").Column)
+
+' Obtention du nombre de colonnes dans la feuille 2-TEMPLATE
+    y = Split(Feuil2.UsedRange.Address, "$")(3)
+    Max_y = CInt(Feuil2.Range(y & "1").Column)
+
+' Sort data of sheet 1-EXPORT from A to x based on Column A ---
+    ActiveWorkbook.Worksheets(Feuil1.name).Sort.SortFields.Clear
+    ActiveWorkbook.Worksheets(Feuil1.name).Sort.SortFields.Add2 Key:=Range( _
+        "A2:A" & Dlig - 1), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortTextAsNumbers
+    With ActiveWorkbook.Worksheets(Feuil1.name).Sort
+        .SetRange Range("A2:" & x & Dlig - 1)
+        .Header = xlNo
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+
+Dim T1 As Long
+    T1 = Timer  ' --- Treatement statistics ---
+    
+    Dlig = Feuil1.Range("A" & Rows.Count).End(xlUp).Row + 1 ' Last line used in sheet 1-EXPORT cette fois
+
+' ------- fulfilling loop from 1-EXPORT to 2-TEMPLATE
+
+    
+' Check all columns from sheet 1-EXPORT
+    For y2 = 1 To Max_y
+        
+        Corres = False
+        
+' Check all columns from sheet 1-EXPORT
+        For x2 = 1 To Max
+            If Feuil1.Cells(1, x2) = Feuil2.Cells(2, y2) Then  ' Vérifie si les noms des colonnes correspondent entre la feuille 1-EXPORT et la feuille 2-TEMPLATE
+                Feuil1.Activate
+            ' Copie des valeurs de la colonne de la feuille 1-EXPORT vers la colonne correspondante de la feuille 2-TEMPLATE
+                Feuil1.Range(Cells(2, x2), Cells(Dlig, x2)).Copy
+                Feuil2.Cells(3, y2).PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+                Corres = True
+            End If
+
+        Next x2
+
+        If Not Corres Then
+' No match between column then it's a formula column in 2-Template and we will copy past the formula of column 3 to all lines
+            Feuil2.Range(Cells(3, y2), Cells(Dlig, y2)).FillDown
+        End If
+    
+' Add here columns to blank
+        If Feuil2.Cells(2, y2) = "COMMITTED SALES QUARTER" Or _
+            Feuil2.Cells(2, y2) = "ACTION & MITIGATION UPDATES" Or _
+            Feuil2.Cells(2, y2) = "PARENT TASK ID" Or _
+            Feuil2.Cells(2, y2) = "ACTION ITEM OWNER" Or _
+            Feuil2.Cells(2, y2) = "REASON CODE" Or _
+            Feuil2.Cells(2, y2) = "FUNCTION UPDATES" Or _
+            Feuil2.Cells(2, y2) = "ISSUE DESCRIPTION" Or _
+            Feuil2.Cells(2, y2) = "DUE DATE" Then
+            Call white_layout(y2, Dlig)
+        ' Somme additional treatment for item from list above
+            Select Case Feuil2.Cells(2, y2)
+            Case "ACTION ITEM OWNER"
+                Call Action_item_owner_layout(y2, Dlig)
+                action_item_id = y2
+            Case "REASON CODE"
+                Call Reason_code_layout(y2, Dlig)
+                reason_code_id = y2
+            Case "DUE DATE"
+                Call Dates_layout_white(y2, Dlig)
+            End Select
+        Else
+            Call common_layout(y2, Dlig) ' to grey all colummns
+
+' Case column "Priority Level"
+            If Feuil2.Cells(2, y2) = "REVIEW PRIORITY LEVEL" Then
+                Call priority_level(y2, Dlig)
+
+' Si la nouvelle colonne est une date, ajouter ci-dessous
+            ElseIf Feuil2.Cells(2, y2) = "ENG REQ DATE" Or _
+                Feuil2.Cells(2, y2) = "ENG CURRENT DATE" Or _
+                Feuil2.Cells(2, y2) = "PO PLACE REQ DATE" Or _
+                Feuil2.Cells(2, y2) = "PO PLACE CURRENT DATE" Or _
+                Feuil2.Cells(2, y2) = "DATE REQUISITION OPENED" Or _
+                Feuil2.Cells(2, y2) = "RTS REQ DATE" Or _
+                Feuil2.Cells(2, y2) = "RTS CURRENT DATE P6" Or _
+                Feuil2.Cells(2, y2) = "ERP REQ DATE (ERP GE NEED DATE)" Or _
+                Feuil2.Cells(2, y2) = "ERP PROM DATE" Or _
+                Feuil2.Cells(2, y2) = "INTEGRATOR NEED DATE" Or _
+                Feuil2.Cells(2, y2) = "ACTUAL PICKUP DATE" Or _
+                Feuil2.Cells(2, y2) = "ACTUAL DELIVERY DATE" Or _
+                Feuil2.Cells(2, y2) = "PICKUP REQ DATE" Or _
+                Feuil2.Cells(2, y2) = "PICKUP CURRENT DATE" Or _
+                Feuil2.Cells(2, y2) = "POE FORECAST DATE" Or _
+                Feuil2.Cells(2, y2) = "FORECAST VESSEL DEPARTURE" Or _
+                Feuil2.Cells(2, y2) = "POI FORECAST DATE" Or _
+                Feuil2.Cells(2, y2) = "DTT P REQ DATE" Or _
+                Feuil2.Cells(2, y2) = "DTT C REQ DATE" Or _
+                Feuil2.Cells(2, y2) = "DTT CURRENT DATE" Or _
+                Feuil2.Cells(2, y2) = "CURRENT GOODS RECEIPT DATE" Or _
+                Feuil2.Cells(2, y2) = "ROUTER SUBMIT DATE" Or _
+                Feuil2.Cells(2, y2) = "ETA" Or _
+                Feuil2.Cells(2, y2) = "ERP PO NEED DATE (STATISTICAL)" Then Call Dates_layout(y2, Dlig)
+            
+' Case columns with Variances to highlight (3 consecutives columns are treated !)
+            ElseIf Feuil2.Cells(2, y2) = "DTT P REQ VAR" Then
+                Call PositiveValue_level(y2, Dlig)
+
+' Case of numbers
+            ElseIf Feuil2.Cells(2, y2) = "PO VALUE" Or _
+            Feuil2.Cells(2, y2) = "PO VALUE (USD)" Or _
+                Feuil2.Cells(2, y2) = "REVREC VALUE (USD)" Then Call number_layout(y2, Dlig)
+
+' Identification of columns location for later treatment
+            ElseIf Feuil2.Cells(2, y2) = "MLI" Then MLI_Col = y2
+            ElseIf Feuil2.Cells(2, y2) = "Block Train" Then BlockT_Col = y2
+            ElseIf Feuil2.Cells(2, y2) = "IPS" Then IPS_col = y2
+            ElseIf Feuil2.Cells(2, y2) = "PART STATUS" Then ProdSts = y2
+            ElseIf Feuil2.Cells(2, y2) = "PO POLINE" Then POL = y2
+
+' Centering data & Identification of columns location for later treatment
+            ElseIf Feuil2.Cells(2, y2) = "RTS IND" Then
+                RTSInd = y2
+                Call Center_cell(y2, Dlig)
+            ElseIf Feuil2.Cells(2, y2) = "ENG IND" Then
+                EngInd = y2
+                Call Center_cell(y2, Dlig)
+            ElseIf Feuil2.Cells(2, y2) = "PO PLACE IND" Then
+                PoInd = y2
+                Call Center_cell(y2, Dlig)
+            ElseIf Feuil2.Cells(2, y2) = "PICKUP IND" Then
+                PuInd = y2
+                Call Center_cell(y2, Dlig)
+            ElseIf Feuil2.Cells(2, y2) = "DTT IND" Then
+                DTTInd = y2
+                Call Center_cell(y2, Dlig)
+            ElseIf Feuil2.Cells(2, y2) = "ENG ADDED DELAY" Then '  Centering the 6 consecutives columns
+                EAD = y2
+                Call Center_cell(y2, Dlig)
+                Call Center_cell(y2 + 1, Dlig)
+                Call Center_cell(y2 + 2, Dlig)
+                Call Center_cell(y2 + 3, Dlig)
+                Call Center_cell(y2 + 4, Dlig)
+                Call Center_cell(y2 + 5, Dlig)
+
+' Centering data only
+            ElseIf Feuil2.Cells(2, y2) = "GOODS RECEIPT IND" Or _
+                    Feuil2.Cells(2, y2) = "IN/OUT" Then
+                Call Center_cell(y2, Dlig)
+            End If
+        End If
+    
+    Next y2
+' ----------- End of fulfilling loop
+
+    Call all_layout(Dlig, Max_y, IPS_col, MLI_Col, BlockT_Col) 'line format + sorting data
+    
+    Call Cond_format(Dlig, Max_y, EngInd, ProdSts, PoInd, RTSInd, PuInd, DTTInd, POL, EAD) ' set conditionnal format
+    
+    Feuil1.Protect ' Protège la feuille 1-EXPORT pour empêcher les modifications ultérieures
+
+' --- save path and file name in Sheet3 for info  -- Nov 2024 ---
+    Feuil3.Unprotect
+    Feuil3.Range("M1") = bookimport
+    Feuil3.Range("P1") = CStr(Format(datebookimport, "dd-mmm-yy hh:nn"))
+    Feuil3.Range("M2") = path_name
+    Feuil3.Protect
+    
+' Reactivate functions after macro treatment
+    Application.ScreenUpdating = True
+    Application.Calculation = xlAutomatic
+    Application.EnableEvents = True
+    Application.DisplayAlerts = True
+
+    Feuil2.Select
+    MsgBox "Successful import!    T1:" & Timer - T1 & " sec"
+    
+End Sub
+
+

@@ -1,0 +1,301 @@
+' === Sub executado na Feuil1 (1-EXPORT) ===
+Sub ApplyFormatting()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("1-EXPORT")
+
+    With ws
+        .Columns("A:A").ColumnWidth = 5
+        .Columns("B:B").ColumnWidth = 8
+        .Columns("C:C").ColumnWidth = 15
+        .Columns("D:D").ColumnWidth = 30
+        .Columns("E:E").ColumnWidth = 25
+        .Columns("F:F").ColumnWidth = 12
+        .Columns("G:G").ColumnWidth = 20
+        .Columns("H:H").ColumnWidth = 13
+        .Columns("I:I").ColumnWidth = 13
+        .Columns("J:J").ColumnWidth = 10
+        .Columns("K:K").ColumnWidth = 11
+        .Columns("L:L").ColumnWidth = 11
+        .Columns("M:M").ColumnWidth = 14
+        .Columns("N:N").ColumnWidth = 13
+        .Columns("O:O").ColumnWidth = 25
+        .Columns("P:P").ColumnWidth = 10
+        .Columns("Q:Q").ColumnWidth = 30
+        .Columns("R:R").ColumnWidth = 30
+        .Columns("S:S").ColumnWidth = 40
+        .Columns("T:T").ColumnWidth = 20
+        .Columns("U:U").ColumnWidth = 20
+    End With
+End Sub
+
+Sub FormatDateColumn()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("1-EXPORT")
+    Dim lastRow As Long, colDate As Variant
+
+    colDate = Application.Match("Date entrée", ws.Rows(2), 0)
+    If IsError(colDate) Then Exit Sub
+    lastRow = ws.Cells(ws.Rows.Count, colDate).End(xlUp).Row
+
+    With ws.Range(ws.Cells(3, colDate), ws.Cells(lastRow, colDate))
+        .NumberFormat = "dd/mm/yyyy"
+    End With
+End Sub
+
+Sub ApplyConditionalFormatting()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("1-EXPORT")
+    Dim colStatus As Variant, lastRow As Long
+
+    colStatus = Application.Match("Statut", ws.Rows(2), 0)
+    If IsError(colStatus) Then Exit Sub
+    lastRow = ws.Cells(ws.Rows.Count, colStatus).End(xlUp).Row
+
+    With ws.Range(ws.Cells(3, colStatus), ws.Cells(lastRow, colStatus))
+        .FormatConditions.Delete
+        With .FormatConditions.Add(Type:=xlCellValue, Operator:=xlEqual, Formula1:="=\"En cours\"")
+            .Interior.Color = RGB(255, 255, 0)
+        End With
+        With .FormatConditions.Add(Type:=xlCellValue, Operator:=xlEqual, Formula1:="=\"Clos\"")
+            .Interior.Color = RGB(0, 176, 80)
+        End With
+        With .FormatConditions.Add(Type:=xlCellValue, Operator:=xlEqual, Formula1:="=\"Nouveau\"")
+            .Interior.Color = RGB(0, 112, 192)
+        End With
+    End With
+End Sub
+
+Sub ApplyDataValidation()
+    Dim wsTemplate As Worksheet, wsExport As Worksheet
+    Set wsTemplate = ThisWorkbook.Sheets("2-TEMPLATE")
+    Set wsExport = ThisWorkbook.Sheets("1-EXPORT")
+
+    Dim headers As Variant, ranges As Variant
+    headers = Array("Statut", "Type demande", "Pilote demande", "Pilote action")
+    ranges = Array("$B$3:$B$5", "$C$3:$C$6", "$D$3:$D$8", "$E$3:$E$7")
+
+    Dim i As Long, col As Variant, lastRow As Long
+    lastRow = wsExport.Cells(wsExport.Rows.Count, 1).End(xlUp).Row
+
+    For i = LBound(headers) To UBound(headers)
+        col = Application.Match(headers(i), wsExport.Rows(2), 0)
+        If Not IsError(col) Then
+            With wsExport.Range(wsExport.Cells(3, col), wsExport.Cells(lastRow, col))
+                .Validation.Delete
+                .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
+                    Formula1:="='2-TEMPLATE'!" & ranges(i)
+            End With
+        End If
+    Next i
+End Sub
+
+Sub ApplyLanguageValidation()
+    Dim wsTemplate As Worksheet, wsExport As Worksheet
+    Set wsTemplate = ThisWorkbook.Sheets("2-TEMPLATE")
+    Set wsExport = ThisWorkbook.Sheets("1-EXPORT")
+
+    Dim colLang As Variant, lastRow As Long
+    colLang = Application.Match("Langue", wsExport.Rows(2), 0)
+    If IsError(colLang) Then Exit Sub
+
+    lastRow = wsExport.Cells(wsExport.Rows.Count, colLang).End(xlUp).Row
+
+    With wsExport.Range(wsExport.Cells(3, colLang), wsExport.Cells(lastRow, colLang))
+        .Validation.Delete
+        .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
+            Formula1:="='2-TEMPLATE'!$F$3:$F$6"
+    End With
+End Sub
+
+Sub RunAll_WithLanguage()
+    Call ApplyFormatting
+    Call FormatDateColumn
+    Call ApplyConditionalFormatting
+    Call ApplyDataValidation
+    Call ApplyLanguageValidation
+End Sub
+
+Sub RunAll_WithoutLanguage()
+    Call ApplyFormatting
+    Call FormatDateColumn
+    Call ApplyConditionalFormatting
+    Call ApplyDataValidation
+End Sub
+
+
+
+
+
+
+Sub AplicarLayoutPorColuna(wsTemplate As Worksheet, colIndex As Long, lastRow As Long, ITDESC As Integer)
+    Dim header As String
+    header = wsTemplate.Cells(2, colIndex).Value
+
+    With wsTemplate
+        Select Case header
+            Case "PO"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Validation _
+                    .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Operator:=xlBetween, Formula1:="YES,NO"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Interior.Color = RGB(255, 255, 153)
+
+            Case "Item Description"
+                ITDESC = colIndex
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Interior.Color = RGB(204, 255, 255)
+
+            Case "P/U"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Validation _
+                    .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Operator:=xlBetween, Formula1:="P,U"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Interior.Color = RGB(255, 204, 255)
+
+            Case "RTS"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Interior.Color = RGB(204, 255, 255)
+
+            Case "Eng Resp"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Interior.Color = RGB(255, 255, 204)
+
+            Case "PO Status"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Validation _
+                    .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Operator:=xlBetween, Formula1:="Released,Pushed Out"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Interior.Color = RGB(255, 204, 255)
+
+            Case "DTT"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Interior.Color = RGB(255, 255, 153)
+
+            Case "Eng Status"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Validation _
+                    .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Operator:=xlBetween, Formula1:="1 Not started,2 On going,3 Released,4 Blocked"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Interior.Color = RGB(204, 255, 255)
+
+            Case "POL", "REQL"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).NumberFormat = "dd/mm/yyyy"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Interior.Color = RGB(255, 255, 204)
+
+            Case "MLI", "IPS"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Interior.Color = RGB(255, 204, 255)
+
+            Case "BLOCK T"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Interior.Color = RGB(192, 192, 192)
+
+            Case "EAD"
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Interior.Color = RGB(146, 208, 80)
+
+            Case Else
+                .Range(.Cells(3, colIndex), .Cells(lastRow, colIndex)).Interior.Color = RGB(255, 255, 255)
+        End Select
+    End With
+End Sub
+
+Sub Template_Perso_teste()
+
+    Dim appfile As Variant
+    Dim Dlig As Long, DCol As Long, Max As Long, Max_y As Long
+    Dim x As String, y As String, x2 As Long, y2 As Long
+    Dim bookimport As Workbook, nom As String, path_name As String
+    Dim datebookimport As Variant
+    Dim Corres As Boolean
+    Dim wsExport As Worksheet, wsTemplate As Worksheet, wsInfo As Worksheet
+    Dim lastColLetter As String
+    Dim ITDESC As Integer
+    Dim T1 As Double
+
+    ' Acelera o processamento
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    Application.DisplayAlerts = False
+
+    Set wsExport = Feuil1
+    Set wsTemplate = Feuil2
+    Set wsInfo = Feuil3
+
+    wsExport.Unprotect
+    wsInfo.Unprotect
+
+    nom = ThisWorkbook.name
+    path_name = ThisWorkbook.Path
+    ChDir path_name
+
+    ' Abrir arquivo para importar
+    appfile = Application.GetOpenFilename()
+    If appfile = False Then Exit Sub
+    Set bookimport = Workbooks.Open(appfile)
+    datebookimport = FileDateTime(bookimport.FullName)
+
+    With bookimport.Sheets(1)
+        Dlig = .Cells(.Rows.Count, 1).End(xlUp).Row
+        DCol = .Cells(2, .Columns.Count).End(xlToLeft).Column
+        lastColLetter = Split(.Cells(2, DCol).Address, "$")(1)
+        .Range("A1:" & lastColLetter & Dlig).Copy
+    End With
+
+    ' Colar valores na Feuil1
+    With wsExport
+        .Range("A1").PasteSpecial Paste:=xlPasteValues
+        .Protect
+        .Visible = xlSheetHidden
+    End With
+
+    bookimport.Close SaveChanges:=False
+
+    ' Ordenar dados por Coluna A
+    With wsExport.Sort
+        .SortFields.Clear
+        .SortFields.Add2 Key:=wsExport.Range("A2:A" & Dlig), Order:=xlAscending
+        .SetRange wsExport.Range("A2:" & lastColLetter & Dlig)
+        .header = xlNo
+        .Apply
+    End With
+
+    ' Atualizar variáveis de colunas
+    Max = wsExport.Cells(1, wsExport.Columns.Count).End(xlToLeft).Column
+    Max_y = wsTemplate.Cells(2, wsTemplate.Columns.Count).End(xlToLeft).Column
+    Dlig = wsExport.Cells(wsExport.Rows.Count, 1).End(xlUp).Row + 1
+    ITDESC = 1
+
+    T1 = Timer
+
+    ' Loop de preenchimento para copiar colunas correspondentes
+    For y2 = 1 To Max_y
+        Corres = False
+        For x2 = 1 To Max
+            If wsExport.Cells(1, x2).Value = wsTemplate.Cells(2, y2).Value Then
+                wsTemplate.Range(wsTemplate.Cells(3, y2), wsTemplate.Cells(Dlig, y2)).Value = _
+                    wsExport.Range(wsExport.Cells(2, x2), wsExport.Cells(Dlig, x2)).Value
+                Corres = True
+                Exit For
+            End If
+        Next x2
+
+        If Not Corres Then
+            wsTemplate.Range(wsTemplate.Cells(3, y2), wsTemplate.Cells(Dlig, y2)).FillDown
+        End If
+
+        ' Aplicar layouts conforme a coluna
+        Call AplicarLayoutPorColuna(wsTemplate, y2, Dlig, ITDESC)
+    Next y2
+
+    ' Finalização
+    Call all_layout(Dlig, Max_y, IPS_col, MLI_Col, BlockT_Col)
+    Call Cond_format(Dlig, ITDESC, EngInd, ProdSts, PoInd, RTSInd, PuInd, DTTInd, POL, REQL, EAD, _
+        Worksheets("PROJECT TEAM").Range("E1") = "YES")
+
+    ' Registro de informações do arquivo importado
+    With wsInfo
+        .Range("M1").Value = bookimport.name
+        .Range("P1").Value = Format(datebookimport, "dd-mmm-yy hh:nn")
+        .Range("M2").Value = path_name
+        .Protect
+    End With
+
+    ' Restaurar configurações
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
+
+    ThisWorkbook.RefreshAll
+    wsTemplate.Select
+    MsgBox "Successful import!    T1: " & Format(Timer - T1, "0.0") & " sec"
+
+End Sub
+

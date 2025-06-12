@@ -1,0 +1,421 @@
+Option Explicit
+Option Compare Text
+
+Public reason_code_id As Integer
+Public action_item_id As Integer
+
+' Função otimizada para criar lista suspensa de proprietários de itens de ação
+Private Sub Action_item_owner_layout(column_target As Long, Dlig As Long)
+With Feuil2.Range(Feuil2.Cells(3, column_target), Feuil2.Cells(Dlig, column_target)).Validation
+.Delete
+.Add Type:=xlValidateList, AlertStyle:=xlValidAlertWarning, Operator:=xlBetween, Formula1:="=Function"
+.IgnoreBlank = True
+.InCellDropdown = True
+.ShowInput = True
+.ShowError = False
+End With
+End Sub
+
+' Função otimizada para criar lista suspensa de códigos de motivo
+Private Sub Reason_code_layout(column_target As Long, Dlig As Long)
+With Feuil2.Range(Feuil2.Cells(3, column_target), Feuil2.Cells(Dlig, column_target)).Validation
+.Delete
+.Add Type:=xlValidateList, AlertStyle:=xlValidAlertWarning, Operator:=xlBetween, Formula1:="=DELAY_REASON"
+.IgnoreBlank = True
+.InCellDropdown = True
+.ShowInput = True
+.ShowError = True
+End With
+End Sub
+
+' Função otimizada para definir níveis de prioridade com escala de cores
+Private Sub priority_level(column_target As Long, Dlig As Long)
+Dim rng As Range
+Set rng = Feuil2.Range(Feuil2.Cells(3, column_target), Feuil2.Cells(Dlig, column_target))
+
+With rng
+.HorizontalAlignment = xlCenter
+.FormatConditions.AddColorScale ColorScaleType:=3
+.FormatConditions(.FormatConditions.Count).SetFirstPriority
+
+With .FormatConditions(1).ColorScaleCriteria(1)
+.Type = xlConditionValueNumber
+.Value = 1
+.FormatColor.Color = 255
+End With
+
+With .FormatConditions(1).ColorScaleCriteria(2)
+.Type = xlConditionValueNumber
+.Value = 2
+.FormatColor.Color = 49407
+End With
+
+With .FormatConditions(1).ColorScaleCriteria(3)
+.Type = xlConditionValueNumber
+.Value = 3
+.FormatColor.Color = 65535
+End With
+End With
+End Sub
+
+' Função otimizada para formatação condicional de valores positivos
+Private Sub PositiveValue_level(column_target As Long, Dlig As Long)
+Dim MaPlage As Range
+Set MaPlage = Feuil2.Range(Feuil2.Cells(3, column_target), Feuil2.Cells(Dlig, column_target + 2))
+
+With MaPlage
+.FormatConditions.Delete
+.FormatConditions.Add(Type:=xlCellValue, Operator:=xlGreater, Formula1:="40").Font.Bold = True
+.FormatConditions(1).Font.Color = RGB(255, 255, 0)
+.FormatConditions(1).Interior.Color = RGB(255, 0, 0)
+
+.FormatConditions.Add(Type:=xlCellValue, Operator:=xlGreater, Formula1:="0").Font.Bold = True
+.FormatConditions(2).Font.Color = RGB(204, 51, 0)
+.FormatConditions(2).Interior.Color = RGB(255, 255, 0)
+End With
+End Sub
+
+' Função otimizada para formatação condicional geral
+Private Sub Cond_format(Dlig As Long, Max_y As Long, EngInd As Long, ProdSts As Long, PoInd As Long, _
+                        RTSInd As Long, PuInd As Long, DTTInd As Long, POL As Long, REQL As Long, _
+                        EAD As Long, Colorlines As Boolean)
+    
+    Dim MaPlage2 As Range
+    Dim x As String
+
+    ' === Formatação para duplicatas em POL ===
+    With Feuil2.Range(Feuil2.Cells(3, POL), Feuil2.Cells(Dlig, POL)).FormatConditions.AddUniqueValues
+        .DupeUnique = xlDuplicate
+        .Interior.Color = RGB(0, 204, 255)
+        .Font.Color = vbYellow
+    End With
+
+    ' === Formatação para duplicatas em REQL ===
+    With Feuil2.Range(Feuil2.Cells(3, REQL), Feuil2.Cells(Dlig, REQL)).FormatConditions.AddUniqueValues
+        .DupeUnique = xlDuplicate
+        .Interior.Color = RGB(0, 204, 255)
+        .Font.Color = vbYellow
+    End With
+
+    ' === Formatação condicional para linhas coloridas ===
+    If Colorlines Then
+        Set MaPlage2 = Feuil2.Range(Feuil2.Cells(3, 1), Feuil2.Cells(Dlig, Max_y))
+
+        With MaPlage2.FormatConditions
+            ' DTT IND
+            x = Split(Feuil2.Cells(3, DTTInd).Address, "$")(1)
+            .Add(Type:=xlExpression, Formula1:="=($" & x & "3=""A"")").Interior.Color = RGB(204, 204, 255)
+
+            ' PU IND
+            x = Split(Feuil2.Cells(3, PuInd).Address, "$")(1)
+            .Add(Type:=xlExpression, Formula1:="=($" & x & "3=""A"")").Interior.Color = RGB(189, 215, 238)
+
+            ' RTS IND
+            x = Split(Feuil2.Cells(3, RTSInd).Address, "$")(1)
+            .Add(Type:=xlExpression, Formula1:="=($" & x & "3=""A"")").Interior.Color = RGB(198, 224, 180)
+
+            ' PO IND
+            x = Split(Feuil2.Cells(3, PoInd).Address, "$")(1)
+            .Add(Type:=xlExpression, Formula1:="=($" & x & "3=""A"")").Interior.Color = RGB(255, 230, 153)
+
+            ' ENG IND
+            x = Split(Feuil2.Cells(3, EngInd).Address, "$")(1)
+            .Add(Type:=xlExpression, Formula1:="=($" & x & "3=""A"")").Interior.Color = RGB(248, 203, 173)
+        End With
+    End If
+
+End Sub
+
+
+' Função otimizada para formatação de datas
+Private Sub Dates_layout(column_target As Long, Dlig As Long)
+With Feuil2.Range(Feuil2.Cells(3, column_target), Feuil2.Cells(Dlig, column_target))
+.NumberFormat = "dd-[$-409]mmm-yy"
+.Interior.Pattern = xlSolid
+.Interior.TintAndShade = -0.149998474074526
+End With
+End Sub
+
+' Função otimizada para formatação de células brancas
+Private Sub white_layout(column_target As Long, Dlig As Long)
+With Feuil2.Range(Feuil2.Cells(3, column_target), Feuil2.Cells(Dlig, column_target)).Interior
+.Pattern = xlSolid
+.TintAndShade = 0
+End With
+End Sub
+
+' Função otimizada para centralizar células
+Private Sub Center_cell(column_target As Long, Dlig As Long)
+Feuil2.Range(Feuil2.Cells(3, column_target), Feuil2.Cells(Dlig, column_target)).HorizontalAlignment = xlCenter
+End Sub
+
+' Função otimizada para formatação de números
+Private Sub number_layout(column_target As Long, Dlig As Long)
+With Feuil2.Range(Feuil2.Cells(3, column_target), Feuil2.Cells(Dlig, column_target))
+.NumberFormat = "#,##0"
+.HorizontalAlignment = xlRight
+End With
+End Sub
+
+' Função otimizada para formatação geral
+Private Sub all_layout(Dlig As Long, Max_y As Long, IPS_c As Long, MLI_c As Long, BlT_c As Long)
+Dim ws As Worksheet
+Dim rng As Range
+Dim ColID_IPS As String, ColID_MLI As String, ColID_BlT As String
+
+Set ws = Feuil2
+Set rng = ws.Range(ws.Cells(3, 1), ws.Cells(Dlig, Max_y))
+
+' Aplicar bordas
+With rng.Borders
+.LineStyle = xlDot
+.Weight = xlThin
+.ColorIndex = xlAutomatic
+End With
+
+' Ordenar dados
+ColID_IPS = Split(ws.Range(ws.Cells(2, 1), ws.Cells(2, IPS_c)).Address, "$")(1)
+ColID_MLI = Split(ws.Range(ws.Cells(2, 1), ws.Cells(2, MLI_c)).Address, "$")(1)
+ColID_BlT = Split(ws.Range(ws.Cells(2, 1), ws.Cells(2, BlT_c)).Address, "$")(1)
+
+With ws.Sort
+.SortFields.Clear
+.SortFields.Add2 Key:=ws.Range(ColID_IPS & "3:" & ColID_IPS & Dlig), SortOn:=xlSortOnValues, Order:=xlAscending
+.SortFields.Add2 Key:=ws.Range(ColID_MLI & "3:" & ColID_MLI & Dlig), SortOn:=xlSortOnValues, Order:=xlAscending
+.SortFields.Add2 Key:=ws.Range(ColID_BlT & "3:" & ColID_BlT & Dlig), SortOn:=xlSortOnValues, Order:=xlAscending
+.SetRange ws.Range("A3:" & Split(ws.Cells(2, Max_y).Address, "$")(1) & Dlig)
+.Header = xlNo
+.Apply
+End With
+
+' Formatar linhas
+With ws.Rows("3:" & Dlig)
+.VerticalAlignment = xlTop
+.WrapText = True
+.Font.Bold = False
+.Font.Size = 10
+.RowHeight = 25.4
+End With
+
+' Texto em negrito para colunas chave
+If ColID_MLI <> "" Then ws.Range(ColID_MLI & "3:" & ColID_MLI & Dlig).Font.Bold = True
+If ColID_IPS <> "" Then ws.Range(ColID_IPS & "3:" & ColID_IPS & Dlig).Font.Bold = True
+If ColID_BlT <> "" Then ws.Range(ColID_BlT & "3:" & ColID_BlT & Dlig).Font.Bold = True
+End Sub
+
+' PROCEDIMENTO PRINCIPAL OTIMIZADO
+Sub Template_Perso_Optimized()
+Dim Dlig As Long, DCol As Long
+Dim Max As Long, Max_y As Long
+Dim IPS_col As Long, BlockT_Col As Long, MLI_Col As Long
+Dim EngInd As Long, PoInd As Long, RTSInd As Long, PuInd As Long, DTTInd As Long
+Dim ProdSts As Long, POL As Long, REQL As Long, EAD As Long
+Dim appfile As Variant, bookimport As String, path_name As String
+Dim datebookimport As Date
+Dim T1 As Double
+Dim wsExport As Worksheet, wsTemplate As Worksheet
+Dim srcRng As Range, destRng As Range
+Dim lastCol As String
+Dim i As Long, j As Long
+Dim columnFound As Boolean
+
+' Iniciar cronômetro
+T1 = Timer
+
+' Configurações para performance
+Application.ScreenUpdating = False
+Application.Calculation = xlManual
+Application.EnableEvents = False
+Application.DisplayAlerts = False
+
+' Definir referências de planilha
+Set wsExport = Feuil1
+Set wsTemplate = Feuil2
+
+' Desproteger e preparar planilha de exportação
+wsExport.Unprotect
+path_name = ThisWorkbook.Path
+ChDir path_name
+
+' Abrir arquivo de dados
+appfile = Application.GetOpenFilename()
+If appfile = False Then Exit Sub
+
+Workbooks.Open appfile
+bookimport = ActiveWorkbook.name
+datebookimport = FileDateTime(bookimport)
+
+' Copiar dados
+With ActiveWorkbook.ActiveSheet
+Dlig = .Range("A" & .Rows.Count).End(xlUp).Row
+DCol = .Cells(2, .Columns.Count).End(xlToLeft).Column
+lastCol = Split(.Cells(2, DCol).Address, "$")(1)
+
+' Copiar apenas valores para melhor performance
+.Range("A1:" & lastCol & Dlig).Copy
+wsExport.Range("A1").PasteSpecial Paste:=xlPasteValues
+End With
+
+' Fechar arquivo importado
+Workbooks(bookimport).Close False
+
+' Determinar tamanhos
+lastCol = Split(wsExport.UsedRange.Address, "$")(3)
+Max = wsExport.Range(lastCol & "1").Column
+lastCol = Split(wsTemplate.UsedRange.Address, "$")(3)
+Max_y = wsTemplate.Range(lastCol & "1").Column
+Dlig = wsExport.Range("A" & wsExport.Rows.Count).End(xlUp).Row + 1
+
+' Ordenar dados de exportação
+With wsExport.Sort
+.SortFields.Clear
+.SortFields.Add2 Key:=wsExport.Range("A2:A" & Dlig - 1), SortOn:=xlSortOnValues, Order:=xlAscending
+.SetRange wsExport.Range("A2:" & Split(wsExport.Cells(2, Max).Address, "$")(1) & Dlig - 1)
+.Header = xlNo
+.Apply
+End With
+
+' Preencher template - versão otimizada
+For j = 1 To Max_y
+columnFound = False
+
+' Verificar correspondência de colunas
+For i = 1 To Max
+If wsExport.Cells(1, i).Value = wsTemplate.Cells(2, j).Value Then
+' Copiar valores diretamente sem seleção
+wsExport.Range(wsExport.Cells(2, i), wsExport.Cells(Dlig, i)).Copy
+wsTemplate.Cells(3, j).PasteSpecial Paste:=xlPasteValues
+columnFound = True
+Exit For
+End If
+Next i
+
+' Se não encontrou correspondência, preencher com fórmulas
+If Not columnFound Then
+wsTemplate.Range(wsTemplate.Cells(3, j), wsTemplate.Cells(Dlig, j)).FillDown
+End If
+
+' Aplicar formatação condicional
+Select Case wsTemplate.Cells(2, j).Value
+Case "COMMITTED SALES QUARTER", "ACTION & MITIGATION UPDATES", "PARENT TASK ID", _
+"ACTION ITEM OWNER", "REASON CODE", "FUNCTION UPDATES", "ISSUE DESCRIPTION", "DUE DATE"
+Call white_layout(j, Dlig)
+
+Select Case wsTemplate.Cells(2, j).Value
+Case "ACTION ITEM OWNER"
+Call Action_item_owner_layout(j, Dlig)
+action_item_id = j
+Case "REASON CODE"
+Call Reason_code_layout(j, Dlig)
+reason_code_id = j
+Case "DUE DATE"
+Call Dates_layout_white(j, Dlig)
+End Select
+
+Case "REVIEW PRIORITY LEVEL"
+Call priority_level(j, Dlig)
+
+Case "ENG REQ DATE", "ENG CURRENT DATE", "PO PLACE REQ DATE", "PO PLACE CURRENT DATE", _
+"DATE REQUISITION OPENED", "RTS REQ DATE", "RTS CURRENT DATE P6", "ERP REQ DATE (ERP GE NEED DATE)", _
+"ERP PROM DATE", "INTEGRATOR NEED DATE", "ACTUAL PICKUP DATE", "ACTUAL DELIVERY DATE", _
+"PICKUP REQ DATE", "PICKUP CURRENT DATE", "POE FORECAST DATE", "FORECAST VESSEL DEPARTURE", _
+"POI FORECAST DATE", "DTT P REQ DATE", "DTT C REQ DATE", "DTT CURRENT DATE", _
+"CURRENT GOODS RECEIPT DATE", "ROUTER SUBMIT DATE", "ETA", "ERP PO NEED DATE (STATISTICAL)"
+Call Dates_layout(j, Dlig)
+
+Case "DTT P REQ VAR"
+Call PositiveValue_level(j, Dlig)
+
+Case "PO VALUE", "PO VALUE (USD)", "REVREC VALUE (USD)"
+Call number_layout(j, Dlig)
+
+Case "MLI"
+MLI_Col = j
+Call Center_cell(j, Dlig)
+
+Case "Block Train"
+BlockT_Col = j
+Call Center_cell(j, Dlig)
+
+Case "IPS"
+IPS_col = j
+
+Case "PART STATUS"
+ProdSts = j
+
+Case "PO POLINE"
+POL = j
+
+Case "REQUISITION"
+REQL = j
+
+Case "RTS IND"
+RTSInd = j
+Call Center_cell(j, Dlig)
+
+Case "ENG IND"
+EngInd = j
+Call Center_cell(j, Dlig)
+
+Case "PO PLACE IND"
+PoInd = j
+Call Center_cell(j, Dlig)
+
+Case "PICKUP IND"
+PuInd = j
+Call Center_cell(j, Dlig)
+
+Case "DTT IND"
+DTTInd = j
+Call Center_cell(j, Dlig)
+
+Case "ENG ADDED DELAY"
+EAD = j
+Call Center_cell(j, Dlig)
+Call Center_cell(j + 1, Dlig)
+Call Center_cell(j + 2, Dlig)
+Call Center_cell(j + 3, Dlig)
+Call Center_cell(j + 4, Dlig)
+Call Center_cell(j + 5, Dlig)
+
+Case "ENG VAR", "PRODUCT", "FRAME", "BASELINE PO PLACE CYCLE", "BASELINE RTS CYCLE", _
+"FORECAST RTS CYCLE", "BASELINE PICKUP CYCLE", "FORECAST PICKUP CYCLE", _
+"BASELINE DELIVERY CYCLE", "FORECAST DELIVERY CYCLE", "PO PLACE VAR", "RTS VAR", _
+"RTS WOW VAR", "PICKUP VAR", "GOODS RECEIPT IND", "IN/OUT"
+Call Center_cell(j, Dlig)
+End Select
+Next j
+
+' Aplicar formatação final
+Call all_layout(Dlig, Max_y, IPS_col, MLI_Col, BlockT_Col)
+Call Cond_format(Dlig, Max_y, EngInd, ProdSts, PoInd, RTSInd, PuInd, DTTInd, POL, REQL, EAD, _
+Worksheets("PROJECT TEAM").Range("E1").Value = "YES")
+
+' Proteger e ocultar planilha de exportação
+wsExport.Protect
+wsExport.Visible = xlSheetHidden
+
+' Registrar informações de importação
+With Feuil3
+.Unprotect
+.Range("M1").Value = bookimport
+.Range("P1").Value = Format(datebookimport, "dd-mmm-yy hh:nn")
+.Range("M2").Value = path_name
+.Protect
+End With
+
+' Restaurar configurações do Excel
+Application.Calculation = xlAutomatic
+Application.EnableEvents = True
+Application.DisplayAlerts = True
+Application.ScreenUpdating = True
+
+' Atualizar tudo e mostrar mensagem final
+ActiveWorkbook.RefreshAll
+wsTemplate.Select
+
+MsgBox "Importação concluída com sucesso! Tempo: " & Format(Timer - T1, "0.00") & " segundos", vbInformation
+End Sub
+
+
+

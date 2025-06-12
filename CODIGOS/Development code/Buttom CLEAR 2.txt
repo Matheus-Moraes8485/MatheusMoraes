@@ -1,0 +1,117 @@
+Option Explicit
+
+Private Sub clearfilter()
+    On Error Resume Next
+    Feuil2.ShowAllData ' Montre toutes les donnnées (efface les filtres)
+End Sub
+
+Private Sub clear_feuil1(Dlig, DCol)
+    Feuil1.Activate
+
+    If Dlig > 1 Then
+        Feuil1.Range(Cells(2, 1), Cells(Dlig, DCol)).ClearContents ' Efface le contenu des cellules de Feuil1
+    End If
+End Sub
+
+Private Sub clear_feuil2(Dlig, DCol)
+
+Dim rng As Range
+Dim Cell
+
+    If Dlig > 2 Then ' else, does means there is no line to suppress ...!
+        Feuil2.Activate
+        Feuil2.Rows("4:4").Select  ' Select line 4 and line under to not suppress all user formulas
+        Range(Selection, Selection.End(xlDown)).Select
+        Selection.Delete Shift:=xlUp ' Supprime les lignes sélectionnées en décalant les cellules vers le haut
+        
+        Feuil2.Rows("3:3").Select   ' Suppress format condition that start from line 3
+        Selection.FormatConditions.Delete
+    
+        Set rng = Feuil2.Range(Cells(3, 1), Cells(3, DCol))
+        rng.SpecialCells(xlCellTypeConstants, 23).Clear ' Efface les cellules avec des valeurs constantes
+
+        For Each Cell In rng
+            If Not Cell.HasFormula Then
+                Cell.ClearFormats ' Efface les formats des cellules sans formule -- POURQUOI ?? peut etre gardé!
+                Selection.FormatConditions.Delete ' Efface les formats conditionnels
+            End If
+        Next Cell
+    End If
+    
+    On Error Resume Next ' To check if really needed ... ----------!!!
+    Feuil2.Range(Cells(3, reason_code_id), Cells(Dlig + 1, reason_code_id)).Clear ' Strange !!!! Efface le contenu des cellules de la plage spécifiée
+    
+End Sub
+
+Private Sub clear_feuil3(Dlig3, DCol)
+    
+    Feuil3.Activate
+    If Dlig3 > 1 Then
+        Feuil3.Range("A2:" & DCol & Dlig3).ClearContents ' Efface le contenu des cellules de Feuil3
+    End If
+    Feuil3.Range("M1:M1").ClearContents ' clear file name and date
+    Feuil3.Range("M2:M2").ClearContents ' clear file name and date
+    Feuil3.Range("P1:P1").Clear ' clear file name and date
+    
+End Sub
+
+' Function called by pressing CLEAR button on sheet3 "3-UPLOAD"
+Sub Clear()
+    
+Dim Dligf1, Dligf3, DerColf1, DerColf2, DerColf3 As Long
+Dim DCol As String
+Dim rng As Range
+Dim confirmation As VbMsgBoxResult
+    
+    confirmation = MsgBox("Are you sure you want to clear the document?", vbYesNo, "Confirmation request") ' Demande une confirmation à l'utilisateur pour effacer tout le contenu
+
+    If confirmation = vbYes Then
+' 4 lines to accelerate the treatment
+        Application.ScreenUpdating = False
+        Application.Calculation = xlManual
+        Application.EnableEvents = False
+        Application.DisplayAlerts = False
+    
+' SHEET 1 "EXPORT"
+        Feuil1.Unprotect
+        Dligf1 = Feuil1.Range("A" & Rows.Count).End(xlUp).Row ' Dernière ligne utilisée dans Feuil1
+        DCol = Split(Feuil1.UsedRange.Address, "$")(3)
+        DerColf1 = Feuil1.Range(DCol & "1").Column ' Dernière colonne utilisée dans Feuil1
+        Call clear_feuil1(Dligf1, DerColf1) ' Appelle la procédure pour effacer le contenu de Feuil1
+        
+' SHEET 2
+        Call clearfilter ' Appelle la procédure clearfilter pour effacer les filtres
+        DCol = Split(Feuil2.UsedRange.Address, "$")(3)
+        DerColf2 = Feuil2.Range(DCol & "1").Column ' Dernière colonne utilisée dans Feuil2
+        Call clear_feuil2(Dligf1, DerColf2) ' Appelle la procédure pour effacer le contenu de Feuil2
+        Feuil1.Protect
+
+' SHEET 3 "3-UPLOAD"
+        Feuil3.Unprotect
+        Dligf3 = Feuil3.Range("A" & Rows.Count).End(xlUp).Row ' Dernière ligne utilisée dans Feuil3
+
+' A modifier ...!!
+'        Range("$A$1").End(xlToRight).Select
+'        DCol = Split(feuil"A1:A" & Selection.Cells.Column, "$")(1)
+        DCol = "J" ' Dernière colonne utilisée dans Feuil3
+        Call clear_feuil3(Dligf3, DCol)  ' Appelle la procédure pour effacer le contenu de Feuil3
+        
+        Feuil3.Protect
+        Feuil3.Select
+
+' Reactivate functions after macro treatment
+        Application.ScreenUpdating = True
+        Application.Calculation = xlAutomatic
+        Application.EnableEvents = True
+        Application.DisplayAlerts = True
+        
+        MsgBox "The document has been erased !" ' Affiche un message indiquant que le document a été effacé
+        
+    Else
+        MsgBox "Clearing operation cancelled." ' Affiche un message indiquant que l'opération pour effacer a été annulée
+    End If
+
+End Sub
+
+
+

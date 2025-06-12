@@ -1,0 +1,190 @@
+Option Explicit
+
+'Main procedure to handle data extraction and comparison
+Public Sub ExtractAndCompareData()
+    On Error GoTo ErrorHandler
+
+    'Declare variables
+    Dim wsCurrent As Worksheet
+    Dim wbSource As Workbook
+    Dim wsSource As Worksheet
+    Dim strPath As String
+    Dim lLastRowSource As Long
+    Dim lLastRowDest As Long
+    Dim lLastColSource As Long
+    Dim rngSource As Range
+    Dim response As VbMsgBoxResult
+    Dim T1 As Long
+    Dim headerRows As Long
+    Dim grayColor As Long
+
+    'Start timer for performance tracking
+    T1 = Timer
+
+    'Initialize worksheet reference
+    Set wsCurrent = ThisWorkbook.Sheets("1-EXPORT")
+
+    'Unprotect and unhide the worksheet (like in BOTAO START 2)
+    wsCurrent.Unprotect
+    wsCurrent.Visible = xlSheetVisible
+
+    'Optimize performance
+    Call OptimizeExcel(True)
+
+    'Get source file
+    strPath = SelectFile()
+    If strPath = "" Then GoTo CleanExit
+
+    'Open workbook and compare headers
+    Set wbSource = Workbooks.Open(strPath)
+    Set wsSource = wbSource.Sheets(1)
+
+    lLastRowSource = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
+    lLastColSource = wsSource.Cells(1, wsSource.Columns.Count).End(xlToLeft).Column
+
+    'Detect gray color (cor cinza) for first two lines
+    grayColor = RGB(122, 122, 122)
+    headerRows = 1
+    If IsRowGray(wsSource, 1, lLastColSource, grayColor) And IsRowGray(wsSource, 2, lLastColSource, grayColor) Then
+        headerRows = 2
+    End If
+
+    'Limpar dados existentes
+    lLastRowDest = wsCurrent.Cells(wsCurrent.Rows.Count, "A").End(xlUp).Row
+    If lLastRowDest > 1 Then
+        wsCurrent.Range("A2:A" & lLastRowDest).EntireRow.ClearContents
+    End If
+
+    'Copiar cabeçalhos, mantendo formatação se forem 2 linhas cinza
+    If headerRows = 2 Then
+        'Copia as duas primeiras linhas (mantendo formatação) para a folha 1 da planilha de destino
+        wsSource.Range(wsSource.Cells(1, 1), wsSource.Cells(2, lLastColSource)).Copy
+        wsCurrent.Range("A1").PasteSpecial xlPasteAllUsingSourceTheme
+        Application.CutCopyMode = False
+        'Copiar o restante dos dados (a partir da linha 3), valores apenas
+        If lLastRowSource > 2 Then
+            Set rngSource = wsSource.Range(wsSource.Cells(3, 1), wsSource.Cells(lLastRowSource, lLastColSource))
+            wsCurrent.Cells(3, 1).Resize(rngSource.Rows.Count, rngSource.Columns.Count).Value = rngSource.Value
+            Call FormatWorksheet(wsCurrent, lLastRowSource, lLastColSource)
+        End If
+    Else
+        'Apenas 1 linha cinza: copia normalmente (mantendo lógica anterior)
+        If lLastRowSource > 1 And lLastColSource > 0 Then
+            Set rngSource = wsSource.Range(wsSource.Cells(2, 1), wsSource.Cells(lLastRowSource, lLastColSource))
+            wsCurrent.Cells(2, 1).Resize(rngSource.Rows.Count, rngSource.Columns.Count).Value = rngSource.Value
+            'Copia o cabeçalho (linha 1)
+            wsCurrent.Range("A1").Resize(1, lLastColSource).Value = wsSource.Range(wsSource.Cells(1, 1), wsSource.Cells(1, lLastColSource)).Value
+            Call FormatWorksheet(wsCurrent, lLastRowSource, lLastColSource)
+        End If
+    End If
+
+    MsgBox "Importação e formatação concluída!", vbInformation
+
+CleanExit:
+    Application.CutCopyMode = False
+    If Not wbSource Is Nothing Then wbSource.Close False
+
+    On Error Resume Next
+    If Not wsCurrent Is Nothing Then
+        wsCurrent.Protect
+        wsCurrent.Visible = xlSheetHidden
+    End If
+    On Error GoTo 0
+
+    Call OptimizeExcel(False)
+
+    MsgBox "Successful import!    Time: " & Format(Timer - T1, "0.0") & " sec"
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "Error " & Err.Number & ": " & Err.Description & vbCrLf & _
+           "In " & Err.Source, vbCritical, "Macro Error"
+
+    If Not wbSource Is Nothing Then
+        On Error Resume Next
+        wbSource.Close SaveChanges:=False
+        Set wbSource = Nothing
+        On Error GoTo 0
+    End If
+
+    If Not wsCurrent Is Nothing Then
+        On Error Resume Next
+        wsCurrent.Protect
+        wsCurrent.Visible = xlSheetHidden
+        On Error GoTo 0
+    End If
+
+    Call OptimizeExcel(False)
+End Sub
+
+'Função para verificar se toda a linha está em cinza
+Private Function IsRowGray(ws As Worksheet, rowNum As Long, lastCol As Long, grayColor As Long) As Boolean
+    Dim c As Long
+    Dim cellColor As Long
+    For c = 1 To lastCol
+        cellColor = ws.Cells(rowNum, c).Interior.Color
+        If cellColor <> grayColor Then
+            IsRowGray = False
+            Exit Function
+        End If
+    Next c
+    IsRowGray = True
+End Function
+
+'Function to format worksheet (enhanced with BOTAO START 2 formatting)
+Private Sub FormatWorksheet(ws As Worksheet, lastRow As Long, lastCol As Long)
+    If lastRow < 1 Or lastCol < 1 Then Exit Sub
+    Dim rngData As Range
+    Set rngData = ws.Range(ws.Cells(1, 1), ws.Cells(lastRow, lastCol))
+
+    With rngData
+        .Borders(xlDiagonalDown).LineStyle = xlNone
+        .Borders(xlDiagonalUp).LineStyle = xlNone
+        With .Borders(xlEdgeLeft): .LineStyle = xlDot: .ColorIndex = xlAutomatic: .TintAndShade = 0: .Weight = xlThin: End With
+        With .Borders(xlEdgeTop): .LineStyle = xlDot: .ColorIndex = xlAutomatic: .TintAndShade = 0: .Weight = xlThin: End With
+        With .Borders(xlEdgeBottom): .LineStyle = xlDot: .ColorIndex = xlAutomatic: .TintAndShade = 0: .Weight = xlThin: End With
+        With .Borders(xlEdgeRight): .LineStyle = xlDot: .ColorIndex = xlAutomatic: .TintAndShade = 0: .Weight = xlThin: End With
+        With .Borders(xlInsideVertical): .LineStyle = xlDot: .ColorIndex = xlAutomatic: .TintAndShade = 0: .Weight = xlThin: End With
+        With .Borders(xlInsideHorizontal): .LineStyle = xlDot: .ColorIndex = xlAutomatic: .TintAndShade = 0: .Weight = xlThin: End With
+
+        .VerticalAlignment = xlTop
+        .WrapText = True
+        .Font.Size = 10
+        .RowHeight = 25.4
+        .Columns.AutoFit
+        .Rows(1).Font.Bold = True
+        .AutoFilter
+    End With
+
+    Application.ScreenUpdating = True
+    ws.Activate
+    On Error Resume Next
+    With ws.Parent.Windows(1)
+        .FreezePanes = False
+        ws.Range("A2").Select
+        .FreezePanes = True
+    End With
+    On Error GoTo 0
+End Sub
+
+Private Sub OptimizeExcel(ByVal bDisable As Boolean)
+    With Application
+        .ScreenUpdating = Not bDisable
+        .EnableEvents = Not bDisable
+        .Calculation = IIf(bDisable, xlCalculationManual, xlCalculationAutomatic)
+        .DisplayAlerts = Not bDisable
+        .CutCopyMode = False
+    End With
+End Sub
+
+Private Function SelectFile() As String
+    On Error Resume Next
+    SelectFile = Application.GetOpenFilename( _
+        Title:="Which file would you like to extract data from?", _
+        FileFilter:="Excel Files (*.xlsx; *.xls),*.xlsx;*.xls")
+
+    If SelectFile = "False" Then
+        MsgBox "No file was selected. Process canceled.", vbInformation
+        SelectFile = ""
+    End If
+End Function

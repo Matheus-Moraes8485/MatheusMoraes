@@ -1,0 +1,231 @@
+Option Explicit
+
+Sub clearfilter1()
+    On Error Resume Next
+    Feuil1.ShowAllData ' Montre toutes les données (efface les filtres) dans Feuil1
+End Sub
+
+Sub clearfilter2()
+    On Error Resume Next
+    Feuil2.ShowAllData ' Montre toutes les données (efface les filtres) dans Feuil2
+End Sub
+
+Sub clear_feuil3(Dlig3)
+    If Dlig3 > 1 Then 'pour les lignes de 2 à x
+        Feuil3.Activate
+        Feuil3.Range("A2:J" & Dlig3).Clear ' Efface le contenu des cellules de Feuil3 -> si rajoute une colonne dans la feuille 3, doit ajouter ici
+    End If
+End Sub
+
+Sub A_to_Z(u, max2, nomfeuille)
+
+    ActiveWorkbook.Worksheets(nomfeuille).AutoFilter.Sort.SortFields.Clear ' Efface les critères de tri existants
+    ActiveWorkbook.Worksheets(nomfeuille).AutoFilter.Sort.SortFields.Add2 Key:= _
+        Range(Cells(2, u), Cells(max2, u)), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+    With ActiveWorkbook.Worksheets(nomfeuille).AutoFilter.Sort
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+
+    Feuil3.Activate
+End Sub
+
+
+Sub Comparison()  ' ---------- This Macro is called with REFRESH butoon ---------
+
+Dim Dlig3 As Integer
+Dim x As String
+Dim max As Integer
+Dim Z As Integer
+
+
+    Feuil3.Unprotect
+    Dlig3 = Feuil3.Range("A" & Rows.Count).End(xlUp).Row ' Dernière ligne utilisée dans Feuil3
+
+    x = Split(Feuil2.UsedRange.Address, "$")(3)
+    max = CInt(Range(x & "1").Column) ' Dernière colonne utilisée dans Feuil2
+
+    Call clear_feuil3(Dlig3)
+    Call clearfilter1
+    Call clearfilter2
+
+'Les variables déterminant l'indice de la colonne pour la sheet : 1-EXPORT
+Dim pa_y, ips_y, rc_y, fo_y, csq_y, actionmitup_y, issuedesc_y, dd_y, aio_y, fupates_y, exp_y, vsfl_y, rfql_y, csl_y As Integer
+
+'Les variables déterminant l'indice de la colonne pour la sheet 2-TEMPLATE
+Dim pa_y2, ips_y2, rc_y2, fo_y2, csq_y2, actionmitup_y2, issuedesc_y2, dd_y2, aio_y2, fupates_y2, exp_y2, vsfl_y2, rfql_y2, csl_y2 As Integer
+
+Dim max2, incre, n As Long
+Dim nomfeuille As String
+Dim tab1()
+Dim linedel As Long
+
+'Zone de maintenance si une colonne viendrait à être ajoutée:
+'Pour savoir l'indice de la colonne facilement, aller sur 1-EXPORT, déprotéger la feuille (Review => unprotect sheet)
+'Puis insérer une ligne au dessus et mettre des numéros (1 sur la colonne 1, 2 sur la colonne 2, 3 sur la colonne 3 et étendre)
+'Ne pas oublier de supprimer la ligne dès que c'est terminé
+'Ce sont toutes les colonnes modifiables par l'utilisateur
+'Cela permettra de détecter les modifications apportées par l'utilisateur
+
+' --- A modifier pour rendre cette recherche dynamique et non statique !!! ---
+
+    ips_y = 1                   'l'indice de la colonne IPS ACTIVITY de la feuille 1-EXPORT est 1
+    pa_y = 2                    'l'indice de la colonne PARENT TASK ID de la feuille 1-EXPORT est 2
+    csq_y = 103                 'Pour la colonne COMMITED SALES QUARTER
+'fo_y =110                  'Pour la colonne FUNCTIONAL OWNER
+    aio_y = 111                  'Pour la colonne ACTION ITEM OWNER
+    rc_y = 112                   'Pour la colonne REASON CODE
+    issuedesc_y = 113            'Pour la colonne ISSUE DESCRIPTION
+    dd_y = 114                   'Pour la colonne DUE DATE
+    actionmitup_y = 119         'Pour la colonne Action and Mitigation Updates, numéro correspond aux dernières cellules, il y en a deux car la colonne doit être vide et ce n'est pas le cas sur le fichier brut
+    fupates_y = 120             'Pour la colonne Function Updates, il y en a deux pour la même raison que actionmitup
+
+'Aussi écrites pour pouvoir importer la donnée dans la feuille UPLOAD
+    csl_y = 43                  'Pour la colonne COMMODITY SOURCING LEADER
+    rfql_y = 44                 'Pour la colonne RFQ LEADER
+    exp_y = 45                  'Pour la colonne EXPEDITOR
+    vsfl_y = 46                 'Pour la colonne VALUE STREAM FULFILLMENT LEADER
+
+'Verifie si le contenu des cellules est le même pour chaque élément du dessus
+'Si ajout de colonnes au dessus, ne pas oublier à le rajouter en dessous
+    For Z = 1 To max
+
+        Select Case Feuil2.Cells(2, Z)
+        Case Feuil1.Cells(1, ips_y)
+            ips_y2 = Z
+        Case Feuil1.Cells(1, pa_y)
+            pa_y2 = Z
+        Case Feuil1.Cells(1, csq_y)
+            csq_y2 = Z
+        Case Feuil1.Cells(1, aio_y)
+            aio_y2 = Z
+        Case Feuil1.Cells(1, rc_y)
+            rc_y2 = Z
+        Case Feuil1.Cells(1, issuedesc_y)
+            issuedesc_y2 = Z
+        Case Feuil1.Cells(1, dd_y)
+            dd_y2 = Z
+        Case Feuil1.Cells(1, actionmitup_y)
+            actionmitup_y2 = Z
+        Case Feuil1.Cells(1, fupates_y)
+            fupates_y2 = Z
+        Case Feuil1.Cells(1, exp_y)
+            exp_y2 = Z
+        Case Feuil1.Cells(1, rfql_y)
+            rfql_y2 = Z
+        Case Feuil1.Cells(1, vsfl_y)
+            vsfl_y2 = Z
+        Case Feuil1.Cells(1, csl_y)
+            csl_y2 = Z
+        End Select
+    Next
+
+    max2 = Feuil1.UsedRange.Rows.Count
+
+'La macro va d'abord classer les ips par ordre alphabétique dans la feuille 2-TEMPLATE, pour qu'ils se retrouvent
+'exactement dans le même ordre que la feuille 1-EXPORT avec la fonction A_to_Z.
+    nomfeuille = Feuil2.name
+' feuil1 is already sorted by first column at loading. doing the same on feuil2 then
+    Call A_to_Z(ips_y2, max2, nomfeuille)
+
+    incre = 1
+    For n = 2 To max2
+
+'La macro va d'abord classer les ips par ordre alphabétique dans la feuille 2-TEMPLATE, pour qu'ils se retrouvent
+'exactement dans le même ordre que la feuille 1-EXPORT avec la fonction A_to_Z.
+'Ensuite, elle va tester pour toutes les lignes si les IPS sont les mêmes.
+'Si elles ne sont pas les mêmes, cela se traduit par la suppresion d'une ligne par l'utilisateur, donc
+'la macro va aller à Line1, qui va annoncer que des lignes ont été supprimées et mettre fin à la procédure.
+
+        If Feuil1.Cells(n, ips_y) <> Feuil2.Cells(n + 1, ips_y2) Then
+            linedel = 1
+            GoTo Line1
+        Else
+            linedel = 0
+            GoTo Line2
+        End If
+
+Line2:
+'Si il y a une seule différence entre 1-EXPORT et 2-TEMPLATE pour les colonnes qui nous intéresse, alors la macro stocke les infos dans un tableau
+        If Feuil1.Cells(n, rc_y) <> Feuil2.Cells(n + 1, rc_y2) _
+        Or Feuil1.Cells(n, pa_y) <> Feuil2.Cells(n + 1, pa_y2) _
+        Or Feuil1.Cells(n, csq_y) <> Feuil2.Cells(n + 1, csq_y2) _
+        Or Feuil1.Cells(n, issuedesc_y) <> Feuil2.Cells(n + 1, issuedesc_y2) _
+        Or Feuil1.Cells(n, actionmitup_y) <> Feuil2.Cells(n + 1, actionmitup_y2) _
+        Or Feuil1.Cells(n, aio_y) <> Feuil2.Cells(n + 1, aio_y2) _
+        Or (Feuil1.Cells(n, dd_y) <> Feuil2.Cells(n + 1, dd_y2) And (Not IsEmpty(Feuil2.Cells(n + 1, dd_y2)) _
+        Or Not IsEmpty(Feuil1.Cells(n, dd_y)))) _
+        Or Feuil1.Cells(n, fupates_y) <> Feuil2.Cells(n + 1, fupates_y2) Then
+    
+    ReDim Preserve tab1(1 To 10, 1 To incre) ' Tableau de 10 colonnes  (A to J)
+            tab1(1, incre) = Feuil2.Cells(n + 1, ips_y2)
+            tab1(2, incre) = Feuil2.Cells(n + 1, pa_y2)
+            tab1(3, incre) = Feuil2.Cells(n + 1, csq_y2)
+        
+    ' ---- Process acceleration
+            Select Case Feuil2.Cells(n + 1, aio_y2)
+            Case "Expeditor" ' Détecte dans la colonne ACTION ITEM OWNER si Expeditor a été sélectionné
+                tab1(4, incre) = Feuil2.Cells(n + 1, exp_y2) ' Si oui alors stocke la valeur de la colonne EXPEDITOR de la même ligne
+                tab1(5, incre) = Left(Right(Feuil2.Cells(n + 1, exp_y2).Value, 10), 9)
+            Case "CSL"  'Pareil
+                tab1(4, incre) = Feuil2.Cells(n + 1, csl_y2)
+                tab1(5, incre) = Left(Right(Feuil2.Cells(n + 1, csl_y2).Value, 10), 9)
+            Case "RFQ Leader" 'Pareil
+                tab1(4, incre) = Feuil2.Cells(n + 1, rfql_y2)
+                tab1(5, incre) = Left(Right(Feuil2.Cells(n + 1, rfql_y2).Value, 10), 9)
+            Case "VSFL" ' Pareil
+                tab1(4, incre) = Feuil2.Cells(n + 1, vsfl_y2)
+                tab1(5, incre) = Left(Right(Feuil2.Cells(n + 1, vsfl_y2).Value, 10), 9)
+            Case Else
+                tab1(4, incre) = Feuil2.Cells(n + 1, aio_y2) ' Pour toutes les autres valeurs
+                tab1(5, incre) = Left(Right(Feuil2.Cells(n + 1, aio_y2).Value, 10), 9)
+            End Select
+    
+            tab1(6, incre) = Feuil2.Cells(n + 1, rc_y2)
+            tab1(7, incre) = Feuil2.Cells(n + 1, issuedesc_y2)
+    
+            If IsDate(Feuil2.Cells(n + 1, dd_y2)) Then
+                tab1(8, incre) = Format(CDate(Feuil2.Cells(n + 1, dd_y2)), "mm/dd/yyyy") ' stocke la date sous un autre format que celui de la template 18-Dec-2022 -> 18/12/2022
+            End If
+    
+            tab1(9, incre) = Feuil2.Cells(n + 1, actionmitup_y2)
+            tab1(10, incre) = Feuil2.Cells(n + 1, fupates_y2)
+    
+            incre = incre + 1
+        End If
+    Next
+
+Dim tab2()
+    If incre > 2 Then
+        tab2 = Application.Transpose(tab1)
+        Feuil3.Range("A2").Resize(UBound(tab2, 1), UBound(tab2, 2)).Value = tab2
+    ElseIf incre = 2 Then
+
+'Ecrit les données du tableau dans la feuille 3-UPLOAD
+        Feuil3.Range("A2") = tab1(1, 1)
+        Feuil3.Range("B2") = tab1(2, 1)
+        Feuil3.Range("C2") = tab1(3, 1)
+        Feuil3.Range("D2") = tab1(4, 1)
+        Feuil3.Range("E2") = tab1(5, 1)
+        Feuil3.Range("F2") = tab1(6, 1)
+        Feuil3.Range("G2") = tab1(7, 1)
+        Feuil3.Range("H2") = tab1(8, 1)
+        Feuil3.Range("I2") = tab1(9, 1)
+        Feuil3.Range("J2") = tab1(10, 1)
+    Else 'si aucun changment détecté
+        MsgBox "No changes have been detected !"
+    End If
+    Feuil3.Protect 'pour que les utilisateurs ne fassent pas de changement dedans
+
+Line1:
+    If linedel = 1 Then 'Nombre de lignes différents entre la pages 1-Export et 2-Template
+        MsgBox "Some Rows seems to have been deleted in sheet 2-Template"
+    End If
+    Exit Sub
+
+End Sub
+
+

@@ -1,0 +1,610 @@
+Option Explicit
+Public a As Integer
+
+Public Function HG_MSD(i, scope_owner_y)
+    If Cells(i, scope_owner_y) = "HG" Then
+        HG_MSD = "HRSG"
+    Else
+        HG_MSD = "MSD"
+    End If
+End Function
+
+Sub clearfilter()
+    On Error Resume Next
+    Feuil2.ShowAllData
+End Sub
+
+Public Function CountComment(strPhrase As String, strMot As String) As Integer
+    Dim strTab() As String
+    strTab = Split(strPhrase, strMot)
+    CountComment = UBound(strTab())
+End Function
+
+Function EPURERDBLNS(tx As Variant, s As String) As String
+
+Dim ttx, i%, d As Object
+    
+    Set d = CreateObject("Scripting.Dictionary")
+    ttx = Split(Trim(tx), s)
+    For i = 0 To UBound(ttx)
+        If ttx(i) <> "&" Then
+             d(ttx(i)) = ""
+        End If
+    Next i
+    ttx = d.keys
+    EPURERDBLNS = Join(ttx, " & ")
+End Function
+
+Function delete_dupplicate(Target_table, i_row, i_column, mli)
+Dim j As Integer
+
+    For j = 1 To UBound(Target_table, 2)
+        If Target_table(2, j) = Cells(i_row, i_column) And Target_table(1, j) <> Cells(i_row, mli) Then
+        
+            delete_dupplicate = 1
+            a = j
+            Exit Function
+        ElseIf Target_table(2, j) = Cells(i_row, i_column) And Target_table(1, j) = Cells(i_row, mli) Then
+            delete_dupplicate = 2
+            Exit Function
+        Else
+            delete_dupplicate = 0
+        End If
+    
+    Next
+
+End Function
+
+Function delete_dupplicate_oldcomment(Target_table, i_row, i_column, mli, Target)
+
+Dim j As Integer
+
+    For j = 1 To UBound(Target_table, 2)
+    
+        If Target_table(2, j) = Target And Target_table(1, j) <> Cells(i_row, mli) Then
+            delete_dupplicate_oldcomment = 1
+            a = j
+            Exit Function
+        ElseIf Target_table(2, j) = Target And Target_table(1, j) = Cells(i_row, mli) Then
+            delete_dupplicate_oldcomment = 2
+            Exit Function
+        Else
+            delete_dupplicate_oldcomment = 0
+        End If
+    Next
+
+End Function
+
+Sub store_owner(ByVal previous_comment As Integer, ByVal name_project As String, ByVal title_project As Integer, ByVal i As Integer, ByVal i_owner As Integer, ByVal mli As Integer, ByVal comment_IPM As Integer, ByVal name As String, tab_owner(), incre_owner, ByVal i_product As Integer, ByVal name_product As String, ByVal scope_owner_y As Integer, ByVal sourcing_test As Integer, ByVal sourcing_type As String)
+
+Dim sData As String
+Dim sDatanb()
+Dim Target As String
+Dim target1 As String
+Dim nb_comment As Integer
+
+    On Error Resume Next
+    nb_comment = CountComment(Cells(i, previous_comment), "-202") 'compte le nombre de commentaires en historique
+'Il est utile de compter les commentaires car s'il n'y en a qu'un il ne faut pas faire l'extraction en détectant la date, il faut juste enlever la date du début.
+
+    If nb_comment > 1 Then 's'il y a plus d'un commentaire
+        sData = Trim(Split(Cells(i, previous_comment).Value, "-202")(1)) ' prend le dernier commentaire en détectant "-2021," Se met à jour automatiquement quand on passe à une autre année
+        target1 = Left(sData, Len(sData) - 7)
+        Target = Mid(target1, 3)
+            
+    Else ' S'il y en a qu'un
+        Target = Right(Cells(i, previous_comment), Len(Cells(i, previous_comment)) - 13) 'prend le commentaire et enlève la date + l'espace ( ce qui fait 13 caractères)
+    End If
+
+    If name <> "Engineering" And name <> "Sourcing Fulfillment" And name <> "IPM" Then
+
+'Si ce n'est pas de l'engineering ni du sourcing fulfilment. Il est important de faire la différence entre sourcing_fulfilment, engineering et les autres car pour l'engineering,
+'il va aussi y avoir le product pris en compte (GT, ST, BOP) car ce n'est pas le même owner. Pour le sourcing, il va y avoir le rts var pris en compte( si la rts est en retard ou non).
+'Ensuite, cela reste la même logique pour stocker les valeurs
+    
+        If Cells(i, i_owner) = name And Cells(i, title_project) = name_project And HG_MSD(i, scope_owner_y) = project_pick.ComboBox2.Value And Cells(i, comment_IPM) <> "" Then
+' Cette condition teste le nom de l'owner, le nom du projet (comme cela fonctionne pour plusieurs projets),  le scope (MSD ou HRSG et s'il y a un commentaire dans la colonne ACTION & MITIGATION UPDATE
+            If IsEmpty(tab_owner) = True Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                 tab_owner(2, incre_owner) = Cells(i, comment_IPM)
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 0 Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Cells(i, comment_IPM)
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 1 Then
+                tab_owner(1, a) = tab_owner(1, a) & " & " & Cells(i, mli)
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 2 Then
+            
+            End If
+        ElseIf Cells(i, i_owner) = name And Cells(i, title_project) = name_project And HG_MSD(i, scope_owner_y) = project_pick.ComboBox2.Value Then
+        
+'Cette condition est la même que celle d'avant mais s'active s'il n'y a pas de commentaire dans la colonne CS pour le MLI testé.
+' Ce qui suit va donc prendre target comme commentaire (qui est définit au dessus), donc le dernier commentaire dans la colonne des historiques
+
+            If IsEmpty(tab_owner) = True Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Target
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 0 Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Target
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 1 Then
+                tab_owner(1, a) = tab_owner(1, a) & " & " & Cells(i, mli)
+        
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 2 Then
+            
+            End If
+        End If
+  
+    
+    ElseIf name = "Engineering" Then 'Pour l'engineering comme il y a plusieurs owner pour un même action owner ( bop, GT , ST) => testé avec i_product
+
+        If Cells(i, i_owner) = name And Cells(i, i_product) = name_product And Cells(i, title_project) = name_project And HG_MSD(i, scope_owner_y) = project_pick.ComboBox2.Value And Cells(i, comment_IPM) <> "" Then
+            If IsEmpty(tab_owner) = True Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Cells(i, comment_IPM)
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 0 Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                 tab_owner(2, incre_owner) = Cells(i, comment_IPM)
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 1 Then
+                tab_owner(1, a) = tab_owner(1, a) & " & " & Cells(i, mli)
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 2 Then
+            
+            End If
+        ElseIf Cells(i, i_owner) = name And Cells(i, i_product) = name_product And Cells(i, title_project) = name_project And HG_MSD(i, scope_owner_y) = project_pick.ComboBox2.Value Then  'S'active si la cellule comment_IPM est vide. Va prendre le dernier commentaire de la colonne IPM update correspondant au MLI
+            If IsEmpty(tab_owner) = True Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Target
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 0 Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Target
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 1 Then
+                tab_owner(1, a) = tab_owner(1, a) & " & " & Cells(i, mli)
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 2 Then
+            
+            End If
+        End If
+                
+    ElseIf name = "IPM" Then 'Pour l'engineering comme il y a plusieurs owner pour un même action owner ( bop, GT , ST) => testé avec i_product
+
+        If Cells(i, i_owner) = name And Cells(i, i_product) = name_product And Cells(i, title_project) = name_project And HG_MSD(i, scope_owner_y) = project_pick.ComboBox2.Value And Cells(i, comment_IPM) <> "" Then
+            If IsEmpty(tab_owner) = True Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Cells(i, comment_IPM)
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 0 Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Cells(i, comment_IPM)
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 1 Then
+                tab_owner(1, a) = tab_owner(1, a) & " & " & Cells(i, mli)
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 2 Then
+            
+            End If
+        ElseIf Cells(i, i_owner) = name And Cells(i, i_product) = name_product And Cells(i, title_project) = name_project And HG_MSD(i, scope_owner_y) = project_pick.ComboBox2.Value Then  'S'active si la cellule comment_IPM est vide. Va prendre le dernier commentaire de la colonne IPM update correspondant au MLI
+            If IsEmpty(tab_owner) = True Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Target
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 0 Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Target
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 1 Then
+                tab_owner(1, a) = tab_owner(1, a) & " & " & Cells(i, mli)
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 2 Then
+            
+            End If
+        End If
+        
+    ElseIf name = "Sourcing Fulfillment" And sourcing_type = "sflate" And sourcing_test = 1 Then
+'le sourcing test est calculé dans la fonction principale, si sourcing_test=1 alors rts_var est supérieur à 0 donc le RTS est confirmé trop tard
+        
+        If Cells(i, i_owner) = name And Cells(i, title_project) = name_project And HG_MSD(i, scope_owner_y) = project_pick.ComboBox2.Value And Cells(i, comment_IPM) <> "" Then
+            If IsEmpty(tab_owner) = True Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Cells(i, comment_IPM)
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 0 Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Cells(i, comment_IPM)
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 1 Then
+                tab_owner(1, a) = tab_owner(1, a) & " & " & Cells(i, mli)
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 2 Then
+                MsgBox Cells(i, mli)
+            
+            End If
+        ElseIf Cells(i, i_owner) = name And Cells(i, title_project) = name_project And HG_MSD(i, scope_owner_y) = project_pick.ComboBox2.Value Then
+            If IsEmpty(tab_owner) = True Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Target
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 0 Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Target
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 1 Then
+                tab_owner(1, a) = tab_owner(1, a) & " & " & Cells(i, mli)
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 2 Then
+            
+            End If
+        End If
+        
+    ElseIf name = "Sourcing Fulfillment" And sourcing_type = "sf" And sourcing_test = 0 Then
+
+        If Cells(i, i_owner) = name And Cells(i, title_project) = name_project And HG_MSD(i, scope_owner_y) = project_pick.ComboBox2.Value And Cells(i, comment_IPM) <> "" Then
+            If IsEmpty(tab_owner) = True Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Cells(i, comment_IPM)
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 0 Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Cells(i, comment_IPM)
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 1 Then
+                tab_owner(1, a) = tab_owner(1, a) & " & " & Cells(i, mli)
+            ElseIf delete_dupplicate(tab_owner, i, comment_IPM, mli) = 2 Then
+            
+            End If
+        ElseIf Cells(i, i_owner) = name And Cells(i, title_project) = name_project And HG_MSD(i, scope_owner_y) = project_pick.ComboBox2.Value Then
+            If IsEmpty(tab_owner) = True Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Target
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 0 Then
+                ReDim Preserve tab_owner(1 To 2, 1 To incre_owner)
+                tab_owner(1, incre_owner) = Cells(i, mli)
+                tab_owner(2, incre_owner) = Target
+                incre_owner = incre_owner + 1
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 1 Then
+                tab_owner(1, a) = tab_owner(1, a) & " & " & Cells(i, mli)
+            ElseIf delete_dupplicate_oldcomment(tab_owner, i, comment_IPM, mli, Target) = 2 Then
+            
+            End If
+        End If
+    End If
+    
+End Sub
+
+'Write data in arrays in the word document
+
+Sub writting_mom(Worddoc, ytab, tab_owner_writting())
+    
+Dim y3 As Integer
+
+Dim before_MLI As String
+Dim MLI_writting As String
+Dim comment_writting As String
+    
+    For y3 = 1 To ytab
+'write the value in the document
+    
+        before_MLI = Chr(13) & Chr(10) & "               "
+        Worddoc.Selection.TypeText Text:=before_MLI
+        Worddoc.Selection.Font.Bold = True
+        Worddoc.Selection.Font.Underline = True
+    
+        MLI_writting = tab_owner_writting(1, y3)
+        MLI_writting = EPURERDBLNS(MLI_writting, " ") & ":"
+        Worddoc.Selection.TypeText Text:=MLI_writting
+        Worddoc.Selection.Font.Bold = False
+        Worddoc.Selection.Font.Underline = False
+        
+        comment_writting = " " & tab_owner_writting(2, y3)
+        
+        Worddoc.Selection.TypeText Text:=comment_writting
+    
+    Next
+
+End Sub
+
+'Prepare the layout of the word document and call function writting_mom
+Sub prepare_writting(place_name_owner As String, row_owner As Integer, column_owner As Integer, Worddoc, tab_owner_prepare())
+
+Dim owner_title As String
+Dim ytab As Integer
+Dim tmp As Variant
+
+    On Error Resume Next
+    tmp = UBound(tab_owner_prepare)
+    If IsEmpty(tmp) Then
+        GoTo empty1
+    Else
+    
+        owner_title = Chr(13) & Chr(10) & Chr(13) & Chr(10) & Sheet2.Range(place_name_owner) & " - " & Sheet2.Cells(row_owner, column_owner) & ":" & Chr(13) & Chr(10)
+        
+        Worddoc.Selection.Font.Bold = True
+        Worddoc.Selection.Font.Underline = True
+        Worddoc.Selection.Font.Size = 14
+        Worddoc.Selection.Font.ColorIndex = 9
+        Worddoc.Selection.TypeText Text:=owner_title
+        Worddoc.Selection.Font.Bold = False
+        Worddoc.Selection.Font.Size = 11
+        Worddoc.Selection.Font.Underline = False
+        Worddoc.Selection.Font.ColorIndex = 1
+        
+        ytab = UBound(tab_owner_prepare(), 2) - LBound(tab_owner_prepare(), 2) + 1
+        
+        Call writting_mom(Worddoc, ytab, tab_owner_prepare)
+        
+        Worddoc.Visible = True
+    
+    End If
+empty1:
+End Sub
+
+Sub prepare_writting_sf(place_name_owner As String, row_owner As Integer, column_owner As Integer, Worddoc, tab_owner_sflate(), tab_owner_sf())
+
+Dim owner_title As String
+Dim ytab As Integer
+Dim tmp, tmp2 As Variant
+
+    On Error Resume Next
+    tmp = UBound(tab_owner_sflate)
+    tmp2 = UBound(tab_owner_sf)
+    If IsEmpty(tmp) And IsEmpty(tmp2) Then
+        GoTo empty2
+    Else
+        owner_title = Chr(13) & Chr(10) & Chr(13) & Chr(10) & Sheet2.Range(place_name_owner) & " - " & Sheet2.Cells(row_owner, column_owner) & ":" & Chr(13) & Chr(10)
+        
+        Worddoc.Selection.Font.Bold = True
+        Worddoc.Selection.Font.Underline = True
+        Worddoc.Selection.Font.Size = 14
+        Worddoc.Selection.Font.ColorIndex = 9
+        Worddoc.Selection.TypeText Text:=owner_title
+        Worddoc.Selection.Font.Bold = False
+        Worddoc.Selection.Font.Size = 11
+        Worddoc.Selection.Font.Underline = False
+        Worddoc.Selection.Font.ColorIndex = 1
+        
+        owner_title = Chr(13) & Chr(10) & "       " & "Actions on items current late RTS: "
+        
+        Worddoc.Selection.Font.ColorIndex = 10
+        Worddoc.Selection.Font.Bold = True
+        Worddoc.Selection.Font.Size = 14
+        Worddoc.Selection.TypeText Text:=owner_title
+        Worddoc.Selection.Font.Bold = False
+        Worddoc.Selection.Font.Size = 11
+        Worddoc.Selection.Font.ColorIndex = 1
+        
+        ytab = UBound(tab_owner_sflate(), 2) - LBound(tab_owner_sflate(), 2) + 1
+        Call writting_mom(Worddoc, ytab, tab_owner_sflate)
+        
+        owner_title = Chr(13) & Chr(10) & Chr(13) & Chr(10) & "       " & "Other:"
+        Worddoc.Selection.Font.Bold = True
+        Worddoc.Selection.Font.ColorIndex = 10
+        Worddoc.Selection.Font.Size = 14
+        Worddoc.Selection.TypeText Text:=owner_title
+        Worddoc.Selection.Font.Bold = False
+        Worddoc.Selection.Font.ColorIndex = 1
+        Worddoc.Selection.Font.Size = 11
+        
+        ytab = UBound(tab_owner_sf(), 2) - LBound(tab_owner_sf(), 2) + 1
+        Call writting_mom(Worddoc, ytab, tab_owner_sf)
+        
+        Worddoc.Visible = True
+    End If
+
+empty2:
+End Sub
+
+Sub MOM_generator()
+
+Dim y, name_project As String
+Dim Max_y, rts_var_y, previous_comment, sourcing_test, owner, title_project, product, Dlig, y2, mli, i, incre_planner, incre_sf_rtslate, incre_sf, comment_IPM, incre_eng_gen, incre_eng_gt, incre_eng_st, incre_eng_hg, incre_cl, incre_pm, incre_vsl, incre_sq, incre_bop_ppm, incre_buyer, incre_expeditor, incre_hrsg_ppm, incre_lpm, incre_pqm, incre_mrp_planner, incre_IPM_no_hg, incre_IPM_hg, scope_owner_y As Integer
+Dim tab_planner(), tab2, tab_eng_gen(), tab_eng_gt(), tab_eng_st(), tab_eng_hg(), tab_cl(), tab_sf(), tab_pem(), tab_sf_rtslate(), tab_pm(), tab_vsl(), tab_sq(), tab_bop_ppm(), tab_buyer(), tab_hrsg_IPM(), tab_expeditor(), tab_hrsg_ppm(), tab_lpm(), tab_pqm(), tab_mrp_planner(), tab_IPM_no_hg(), tab_IPM_hg()
+    
+    Feuil2.Activate
+    Call clearfilter
+
+    y = Split(Feuil2.UsedRange.Address, "$")(3)
+    Max_y = CInt(Feuil2.Range(y & "1").Column) 'calcul le nombre de colonne max
+    Dlig = Feuil2.Range("A" & Rows.Count).End(xlUp).Row
+
+    project_pick.Show
+    name_project = project_pick.ComboBox1.Value
+
+' Détecte quelles colonnes correspondent aux éléments qui nous intéressent et stocke leurs indices
+
+    For y2 = 1 To Max_y
+
+        Select Case Cells(2, y2)
+            Case "FUNCTIONAL OWNER"
+                owner = y2 ' numéro de la colonne owner
+            Case "PRODUCT"
+                product = y2
+            Case "MLI"
+                mli = y2
+            Case "ACTION & MITIGATION UPDATES"
+                comment_IPM = y2
+            Case "PROJECT NAME"
+                title_project = y2
+            Case "ACTION & MITIGATION UPDATES (HISTORY)"
+                previous_comment = y2
+            Case "SCOPE"
+                scope_owner_y = y2
+            Case "RTS VAR"
+                rts_var_y = y2
+        End Select
+    
+    Next
+
+    incre_planner = 1
+    incre_sf = 1
+    incre_sf_rtslate = 1
+    incre_eng_gt = 1
+    incre_eng_gen = 1
+    incre_eng_st = 1
+    incre_eng_hg = 1
+    incre_bop_ppm = 1
+    incre_mrp_planner = 1
+    incre_IPM_no_hg = 1
+    
+    incre_IPM_hg = 1
+    incre_pm = 1
+    incre_eng_gen = 1
+    incre_vsl = 1
+    incre_cl = 1
+    incre_buyer = 1
+    incre_lpm = 1
+    incre_hrsg_ppm = 1
+    incre_expeditor = 1
+    incre_pqm = 1
+    incre_sq = 1
+    
+    For i = 3 To Dlig
+    
+        If Cells(i, rts_var_y) > 0 Then
+            sourcing_test = 1
+        Else
+            sourcing_test = 0
+        End If
+    
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "Planner", tab_planner, incre_planner, product, "", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "Engineering", tab_eng_gt, incre_eng_gt, product, "GT", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "Engineering", tab_eng_st, incre_eng_st, product, "ST", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "BOP PPM", tab_bop_ppm, incre_bop_ppm, product, "", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "Engineering", tab_eng_hg, incre_eng_hg, product, "HG", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "IPM", tab_IPM_hg, incre_IPM_hg, product, "HG", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "IPM", tab_IPM_no_hg, incre_IPM_no_hg, product, "GT", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "IPM", tab_IPM_no_hg, incre_IPM_no_hg, product, "GG", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "IPM", tab_IPM_no_hg, incre_IPM_no_hg, product, "SG", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "IPM", tab_IPM_no_hg, incre_IPM_no_hg, product, "ST", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "IPM", tab_IPM_no_hg, incre_IPM_no_hg, product, "PP", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "IPM", tab_IPM_no_hg, incre_IPM_no_hg, product, "PC", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "MRP Planner", tab_mrp_planner, incre_mrp_planner, product, "", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "PM", tab_pm, incre_pm, product, "", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "Engineering", tab_eng_gen, incre_eng_gen, product, "GG", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "Engineering", tab_eng_gen, incre_eng_gen, product, "SG", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "Value Stream Leader", tab_vsl, incre_vsl, product, "", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "Commodity Leader", tab_cl, incre_cl, product, "", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "Buyer", tab_buyer, incre_buyer, product, "", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "LPM", tab_lpm, incre_lpm, product, "", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "HRSG PPM", tab_hrsg_ppm, incre_hrsg_ppm, product, "", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "Expeditor", tab_expeditor, incre_expeditor, product, "", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "PQM", tab_pqm, incre_pqm, product, "", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "Sourcing Quality", tab_sq, incre_sq, product, "", product, sourcing_test, "")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "Sourcing Fulfillment", tab_sf, incre_sf, product, "", product, sourcing_test, "sf")
+        Call store_owner(previous_comment, name_project, title_project, i, owner, mli, comment_IPM, "Sourcing Fulfillment", tab_sf_rtslate, incre_sf_rtslate, product, "", product, sourcing_test, "sflate")
+    Next
+
+Dim xtab, ytab, x3, y3 As Integer
+
+'Create word
+
+Dim Worddoc As Object
+
+    Set Worddoc = CreateObject("Word.Application")
+
+' Create a new file :
+
+    Worddoc.Documents.Add
+    
+Dim strValueTitle As String
+Dim MLI_writting As String
+Dim comment_writting As String
+Dim owner_title As String
+Dim eng_title As String
+    strValueTitle = name_project & Chr(13) & Chr(10) & Chr(13) & Chr(10) & " Hi team," & Chr(13) & Chr(10) & Chr(13) & Chr(10) & "Following our review of today, please find attached the file we reviewed including notes." & Chr(13) & Chr(10) & " Actions here below: "
+    Worddoc.Selection.TypeText Text:=strValueTitle
+
+' Sélectionne le bon projet dans la feuille "project team" et appelle la fonction prepare_writting:
+
+Dim y1 As String
+Dim Max_Y1 As Integer
+Dim y4 As Integer
+Dim i_project As Integer
+
+' Trouver le nombre de colonne utilisée afin de récolter l'indice de la dernière colonne (Max_y):
+
+    y1 = Split(Sheet2.UsedRange.Address, "$")(3)
+    Max_Y1 = CInt(Sheet2.Range(y1 & "1").Column)
+    
+    i_project = 0
+
+    For y4 = 1 To Max_Y1  'On parcourt toutes les cellules de la première ligne, de la colonne 1 à la colonne Y1
+    
+        If Sheet2.Cells(1, y4) = name_project Then  'Si le nom que contient la cellule match avec le projet sélectionné par l'utilisateur alors il appelle la fonction prepare_writting pour tous les owner du projet concerné
+            Call prepare_writting("A12", "12", y4, Worddoc, tab_pqm)
+            Call prepare_writting("A3", "3", y4, Worddoc, tab_bop_ppm)
+            Call prepare_writting("A22", "22", y4, Worddoc, tab_hrsg_ppm)
+            Call prepare_writting("A6", "6", y4, Worddoc, tab_eng_gen)
+            Call prepare_writting("A4", "4", y4, Worddoc, tab_eng_gt)
+            Call prepare_writting("A7", "7", y4, Worddoc, tab_eng_hg)
+            Call prepare_writting("A5", "5", y4, Worddoc, tab_eng_st)
+            Call prepare_writting("A21", "21", "2", Worddoc, tab_buyer)
+            Call prepare_writting("A9", "9", y4, Worddoc, tab_mrp_planner)
+            Call prepare_writting_sf("A13", "13", y4, Worddoc, tab_sf_rtslate, tab_sf)
+            Call prepare_writting("A26", "26", "2", Worddoc, tab_vsl)
+            Call prepare_writting("A20", "20", "2", Worddoc, tab_cl)
+            Call prepare_writting("A19", "19", "2", Worddoc, tab_pem)
+            Call prepare_writting("A24", "24", "2", Worddoc, tab_expeditor)
+            Call prepare_writting("A25", "25", y4, Worddoc, tab_sq)
+            Call prepare_writting("A23", "23", y4, Worddoc, tab_lpm)
+            Call prepare_writting("A10", "10", y4, Worddoc, tab_planner)
+            Call prepare_writting("A11", "11", y4, Worddoc, tab_pm)
+            Call prepare_writting("A16", "16", y4, Worddoc, tab_IPM_hg)
+            Call prepare_writting("A8", "8", y4, Worddoc, tab_IPM_no_hg)
+
+            i_project = 1
+
+            Exit For
+        End If
+    Next
+
+    If i_project = 0 Then
+        MsgBox "The project has not been found. Check spelling of the project in the sheet 'project team'" 'S'il a trouvé i_project vaut 1, sinon il vaut 0
+    End If
+
+    Erase tab_planner
+    
+    Erase tab_eng_gen
+    Erase tab_eng_gt
+    Erase tab_eng_hg
+    Erase tab_eng_st
+    Erase tab_cl
+    Erase tab_sf
+    Erase tab_sf_rtslate
+    Erase tab_pm
+    Erase tab_vsl
+    Erase tab_sq
+    Erase tab_bop_ppm
+    Erase tab_buyer
+    Erase tab_expeditor
+    Erase tab_hrsg_ppm
+    Erase tab_lpm
+    Erase tab_pqm
+    Erase tab_mrp_planner
+    
+    Erase tab_IPM_no_hg
+    Erase tab_IPM_hg
+    a = 0
+End Sub
